@@ -13,11 +13,10 @@
  */
 
 import type { ServerNotification, ServerRequest, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { RequestHandlerExtra, RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { ExecutionProcess, ExecutionProcessStatus } from './api/types.js';
 import { getVibeClient } from './api/client.js';
-import { createProgressEmitter } from './utils/progress.js';
-import { shortId, formatSuccess } from './utils/formatter.js';
+import { shortId } from './utils/formatter.js';
 
 type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
@@ -54,8 +53,9 @@ export async function taskAwareSendMessage(
     pollInterval: POLL_INTERVAL_MS,
   });
 
-  // Start background polling (non-blocking)
-  pollExecutionProcess(process.id, sessionId, task.taskId, extra).catch(err => {
+  // Start background polling (non-blocking).
+  // Only pass taskStore — extra is request-scoped and becomes stale after this handler returns.
+  pollExecutionProcess(process.id, sessionId, task.taskId, taskStore).catch(err => {
     console.error('[vibe-kanban-mcp] Task poll error:', err);
   });
 
@@ -84,21 +84,24 @@ async function pollExecutionProcess(
   processId: string,
   sessionId: string,
   mcpTaskId: string,
-  extra: Extra,
+  taskStore: RequestTaskStore,
 ): Promise<void> {
   const client = getVibeClient();
-  const taskStore = extra.taskStore!;
-  const p = createProgressEmitter(extra);
   const startTime = Date.now();
 
   for (let i = 0; i < MAX_POLL_ITERATIONS; i++) {
-    // Check for cancellation
-    if (extra.signal.aborted) {
-      await taskStore.updateTaskStatus(mcpTaskId, 'cancelled', 'Cancelled by client');
+    await sleep(POLL_INTERVAL_MS);
+
+    // Check for cancellation via task store (not request-scoped signal)
+    try {
+      const task = await taskStore.getTask(mcpTaskId);
+      if (task.status === 'cancelled') {
+        return;
+      }
+    } catch {
+      // Task may have been cleaned up; stop polling
       return;
     }
-
-    await sleep(POLL_INTERVAL_MS);
 
     try {
       let process: ExecutionProcess;
@@ -117,9 +120,6 @@ async function pollExecutionProcess(
 
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       const mcpStatus = mapStatus(process.status);
-
-      // Emit progress notification
-      await p.emit(i + 1, MAX_POLL_ITERATIONS, `Execution ${process.status} (${elapsed}s elapsed)`);
 
       // Check for terminal states
       if (mcpStatus === 'completed') {
