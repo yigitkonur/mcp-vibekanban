@@ -97,17 +97,19 @@ export class VibeClient {
   async startWorkspaceSession(taskId: string, executor: string, variant?: string, baseBranch?: string): Promise<Workspace> {
     const normalizedExecutor = executor.trim().replace(/-/g, '_').toUpperCase();
     
-    return this.request<Workspace>('POST', '/api/task-attempts', {
+    // Build payload - target_branch defaults to "main" if not specified
+    const payload: Record<string, unknown> = {
       task_id: taskId,
-      executor_profile_id: {
-        executor: normalizedExecutor,
-        variant: variant || null,
-      },
-      repos: [{
-        repo_id: this.repoId,
-        target_branch: baseBranch || null,
+      executor_profile_id: variant 
+        ? { executor: normalizedExecutor, variant }
+        : { executor: normalizedExecutor },
+      repos: [{ 
+        repo_id: this.repoId, 
+        target_branch: baseBranch || 'main' 
       }],
-    });
+    };
+    
+    return this.request<Workspace>('POST', '/api/task-attempts', payload);
   }
 
   async getWorkspaceContext(workspaceId: string): Promise<WorkspaceContext> {
