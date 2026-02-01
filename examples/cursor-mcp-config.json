@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "vibe-kanban": {
+      "command": "npx",
+      "args": ["-y", "vibe-kanban-better-mcp"],
+      "env": {
+        "VIBE_PROJECT_ID": "YOUR_PROJECT_UUID_HERE",
+        "VIBE_REPO_ID": "YOUR_REPO_UUID_HERE"
+      }
+    }
+  }
+}
