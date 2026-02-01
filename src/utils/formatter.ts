@@ -199,6 +199,21 @@ export function formatWorkspaceInfo(info: {
 }
 
 /**
+ * Format data for a resource read response
+ */
+export function formatResourceContent(uri: string, data: unknown): {
+  contents: Array<{ uri: string; mimeType: string; text: string }>;
+} {
+  return {
+    contents: [{
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(data, null, 2),
+    }],
+  };
+}
+
+/**
  * Format queue status
  */
 export function formatQueueStatus(hasQueued: boolean, message?: string, executor?: string): string {

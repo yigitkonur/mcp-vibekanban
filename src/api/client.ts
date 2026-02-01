@@ -242,6 +242,15 @@ export class VibeClient {
     return this.request<QueueStatus>('DELETE', `/api/sessions/${sessionId}/queue`);
   }
 
+  // Execution Process Operations
+  async getExecutionProcess(processId: string): Promise<ExecutionProcess> {
+    return this.request<ExecutionProcess>('GET', `/api/execution-processes/${processId}`);
+  }
+
+  async listExecutionProcesses(sessionId: string): Promise<ExecutionProcess[]> {
+    return this.request<ExecutionProcess[]>('GET', `/api/sessions/${sessionId}/execution-processes`);
+  }
+
   // Helper to build ExecutorProfileId
   buildExecutorProfile(executor: string, variant?: string): ExecutorProfileId {
     const normalized = executor.trim().replace(/-/g, '_').toUpperCase();

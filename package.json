@@ -1,6 +1,6 @@
 {
   "name": "vibe-kanban-better-mcp",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "description": "Enhanced MCP server for Vibe Kanban - simplified tools with env-based project/repo locking",
   "type": "module",
   "main": "dist/index.js",

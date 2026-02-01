@@ -8,6 +8,7 @@ export interface Config {
   repoId: string | null; // null if not provided (will be auto-fetched)
   baseUrl: string;
   workspaceId?: string;
+  resourcePollIntervalMs: number;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,6 +18,7 @@ export function loadConfig(): Config {
   const repoId = process.env.VIBE_REPO_ID || null;
   const baseUrl = process.env.VIBE_API_URL || 'http://localhost:9119';
   const workspaceId = process.env.VIBE_WORKSPACE_ID;
+  const resourcePollIntervalMs = parseInt(process.env.VIBE_RESOURCE_POLL_INTERVAL || '10000', 10);
 
   if (!projectId) {
     console.error('[vibe-kanban-mcp] Error: VIBE_PROJECT_ID is required');
@@ -39,6 +41,7 @@ export function loadConfig(): Config {
     repoId,
     baseUrl: baseUrl.replace(/\/$/, ''),
     workspaceId,
+    resourcePollIntervalMs: isNaN(resourcePollIntervalMs) ? 10000 : resourcePollIntervalMs,
   };
 }
 
