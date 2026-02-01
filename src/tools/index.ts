@@ -1,16 +1,21 @@
 /**
  * MCP Tools for Vibe Kanban - Agent-Optimized
- * 
+ *
  * 12 tools with markdown responses following 70/20/10 pattern:
  * - 70% Summary: Key insights, status
  * - 20% Data: Structured lists/tables
  * - 10% Next Steps: Suggested follow-up actions
+ *
+ * All handlers accept (args, extra) to support MCP progress notifications
+ * and task primitive integration.
  */
 
 import { z } from 'zod';
 import { getVibeClient } from '../api/client.js';
 import { getConfig } from '../config.js';
 import type { TaskStatus } from '../api/types.js';
+import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
   formatSuccess,
   formatError,
@@ -21,6 +26,9 @@ import {
   formatQueueStatus,
   shortId,
 } from '../utils/formatter.js';
+import { createProgressEmitter } from '../utils/progress.js';
+
+export type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
 // ============================================
 // get_context
@@ -38,11 +46,15 @@ export const getContextTool = {
 
 <example>get_context()</example>`,
   inputSchema: z.object({}),
-  
-  async handler() {
+
+  async handler(_args: Record<string, never>, extra: Extra) {
+    const p = createProgressEmitter(extra);
     const config = getConfig();
-    
+
+    await p.emit(0, 2, 'Resolving config');
+
     if (!config.workspaceId) {
+      await p.emit(2, 2, 'Done');
       return formatSuccess({
         summary: `📍 **Project Context**
 • Project: \`${shortId(config.projectId)}\`
@@ -57,8 +69,10 @@ export const getContextTool = {
 
     try {
       const client = getVibeClient();
+      await p.emit(1, 2, 'Fetching workspace context');
       const ctx = await client.getWorkspaceContext(config.workspaceId);
-      
+
+      await p.emit(2, 2, 'Done');
       return formatSuccess({
         summary: `📍 **Active Workspace Context**
 • Project: **${ctx.project.name}** (\`${shortId(ctx.project.id)}\`)
@@ -102,20 +116,24 @@ export const listTasksTool = {
       .describe('Max results (default: 50)'),
   }),
 
-  async handler(args: { status?: TaskStatus; limit?: number }) {
+  async handler(args: { status?: TaskStatus; limit?: number }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Fetching tasks');
       const client = getVibeClient();
       const tasks = await client.listTasks(args.status, args.limit || 50);
-      
+
+      await p.emit(1, 2, 'Formatting results');
       // Count by status
       const counts: Record<string, number> = {};
       tasks.forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
-      
+
       const statusFilter = args.status ? ` (${args.status})` : '';
       const countSummary = Object.entries(counts)
         .map(([s, c]) => `${s}: ${c}`)
         .join(' • ');
-      
+
+      await p.emit(2, 2, 'Done');
       return formatSuccess({
         summary: `📋 **${tasks.length} Tasks**${statusFilter}
 ${countSummary || 'No tasks yet'}`,
@@ -157,11 +175,17 @@ export const createTaskTool = {
     description: z.string().optional().describe('Task description (supports @tag expansion)'),
   }),
 
-  async handler(args: { title: string; description?: string }) {
+  async handler(args: { title: string; description?: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 3, 'Expanding tags');
       const client = getVibeClient();
+
+      await p.emit(1, 3, 'Creating task');
       const task = await client.createTask(args.title, args.description);
-      
+
+      await p.emit(2, 3, 'Formatting result');
+      await p.emit(3, 3, 'Done');
       return formatSuccess({
         summary: `✅ **Task Created**
 • Title: **${task.title}**
@@ -197,11 +221,15 @@ export const getTaskTool = {
     task_id: z.string().uuid().describe('Task UUID'),
   }),
 
-  async handler(args: { task_id: string }) {
+  async handler(args: { task_id: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Fetching task');
       const client = getVibeClient();
       const task = await client.getTask(args.task_id);
-      
+
+      await p.emit(1, 2, 'Formatting result');
+      await p.emit(2, 2, 'Done');
       return formatSuccess({
         summary: formatTask(task),
         nextSteps: [
@@ -249,17 +277,22 @@ export const updateTaskTool = {
     message: 'At least one of title, description, or status required',
   }),
 
-  async handler(args: { task_id: string; title?: string; description?: string; status?: TaskStatus }) {
+  async handler(args: { task_id: string; title?: string; description?: string; status?: TaskStatus }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 3, 'Expanding tags');
       const client = getVibeClient();
       const updates: { title?: string; description?: string; status?: TaskStatus } = {};
       if (args.title) updates.title = args.title;
       if (args.description) updates.description = args.description;
       if (args.status) updates.status = args.status;
 
+      await p.emit(1, 3, 'Updating task');
       const task = await client.updateTask(args.task_id, updates);
       const fields = Object.keys(updates).join(', ');
-      
+
+      await p.emit(2, 3, 'Formatting result');
+      await p.emit(3, 3, 'Done');
       return formatSuccess({
         summary: `✅ **Task Updated** (${fields})
 • Title: **${task.title}**
@@ -267,7 +300,7 @@ export const updateTaskTool = {
 • ID: \`${shortId(task.id)}\``,
         nextSteps: [
           `View full task: \`get_task(task_id="${task.id}")\``,
-          task.status !== 'done' 
+          task.status !== 'done'
             ? `Mark done: \`update_task(task_id="${task.id}", status="done")\``
             : `Reopen: \`update_task(task_id="${task.id}", status="inprogress")\``,
         ],
@@ -297,11 +330,14 @@ export const deleteTaskTool = {
     task_id: z.string().uuid().describe('Task UUID'),
   }),
 
-  async handler(args: { task_id: string }) {
+  async handler(args: { task_id: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Deleting task');
       const client = getVibeClient();
       await client.deleteTask(args.task_id);
-      
+
+      await p.emit(1, 2, 'Done');
       return formatSuccess({
         summary: `🗑️ **Task Deleted**
 • ID: \`${args.task_id}\`
@@ -348,15 +384,21 @@ export const startWorkspaceSessionTool = {
     base_branch: z.string().optional().describe('Base branch (default: main)'),
   }),
 
-  async handler(args: { task_id: string; executor: string; variant?: string; base_branch?: string }) {
+  async handler(args: { task_id: string; executor: string; variant?: string; base_branch?: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 3, 'Resolving repo');
       const client = getVibeClient();
+
+      await p.emit(1, 3, 'Starting workspace session');
       const workspace = await client.startWorkspaceSession(
         args.task_id, args.executor, args.variant, args.base_branch
       );
-      
+
       const repoId = await client.getRepoIdResolved();
-      
+
+      await p.emit(2, 3, 'Formatting result');
+      await p.emit(3, 3, 'Done');
       return formatSuccess({
         summary: formatWorkspaceInfo({
           workspace_id: workspace.id,
@@ -398,11 +440,15 @@ export const listSessionsTool = {
     workspace_id: z.string().uuid().describe('Workspace UUID'),
   }),
 
-  async handler(args: { workspace_id: string }) {
+  async handler(args: { workspace_id: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Fetching sessions');
       const client = getVibeClient();
       const sessions = await client.listSessions(args.workspace_id);
-      
+
+      await p.emit(1, 2, 'Formatting results');
+      await p.emit(2, 2, 'Done');
       return formatSuccess({
         summary: `📂 **${sessions.length} Session${sessions.length !== 1 ? 's' : ''}** in workspace \`${shortId(args.workspace_id)}\``,
         data: formatSessionList(sessions.map(s => ({
@@ -442,11 +488,14 @@ export const getSessionTool = {
     session_id: z.string().uuid().describe('Session UUID'),
   }),
 
-  async handler(args: { session_id: string }) {
+  async handler(args: { session_id: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Fetching session');
       const client = getVibeClient();
       const session = await client.getSession(args.session_id);
-      
+
+      await p.emit(1, 2, 'Done');
       return formatSuccess({
         summary: `📍 **Session Details**
 • ID: \`${session.id}\`
@@ -493,13 +542,15 @@ export const sendMessageTool = {
     auto_queue: z.boolean().optional().default(true).describe('Queue if busy (default: true)'),
   }),
 
-  async handler(args: { session_id: string; prompt: string; executor?: string; variant?: string; auto_queue?: boolean }) {
+  async handler(args: { session_id: string; prompt: string; executor?: string; variant?: string; auto_queue?: boolean }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 4, 'Fetching session');
       const client = getVibeClient();
-      
+
       const session = await client.getSession(args.session_id);
       const executor = args.executor || session.executor;
-      
+
       if (!executor) {
         return formatError({
           type: 'EXECUTOR_REQUIRED',
@@ -510,13 +561,28 @@ export const sendMessageTool = {
       }
 
       const executorProfile = client.buildExecutorProfile(executor, args.variant);
-      
+
+      await p.emit(1, 4, 'Sending message');
       try {
         const process = await client.sendFollowUp(args.session_id, {
           prompt: args.prompt,
           executor_profile_id: executorProfile,
         });
-        
+
+        // If task store is available, delegate to task-aware logic
+        if (extra.taskStore) {
+          try {
+            const { taskAwareSendMessage } = await import('../tasks.js');
+            return await taskAwareSendMessage(
+              args.session_id, executor, process, extra
+            );
+          } catch {
+            // Fall through to normal response if task creation fails
+          }
+        }
+
+        await p.emit(3, 4, 'Formatting result');
+        await p.emit(4, 4, 'Done');
         return formatSuccess({
           summary: `✅ **Message Sent**
 • Executor: **${executor.toUpperCase()}**
@@ -530,18 +596,20 @@ export const sendMessageTool = {
       } catch (e) {
         const errorStr = String(e);
         const shouldQueue = args.auto_queue !== false && (
-          errorStr.includes('running') || 
+          errorStr.includes('running') ||
           errorStr.includes('busy') ||
           errorStr.includes('409') ||
           errorStr.includes('conflict')
         );
-        
+
         if (shouldQueue) {
+          await p.emit(2, 4, 'Queueing message (executor busy)');
           const queueResult = await client.queueMessage(args.session_id, {
             message: args.prompt,
             executor_profile_id: executorProfile,
           });
-          
+
+          await p.emit(4, 4, 'Done');
           return formatSuccess({
             summary: `📤 **Message Queued**
 • Executor: **${executor.toUpperCase()}** (busy)
@@ -552,7 +620,7 @@ export const sendMessageTool = {
             ],
           });
         }
-        
+
         throw e;
       }
     } catch (e) {
@@ -580,11 +648,14 @@ export const getQueueStatusTool = {
     session_id: z.string().uuid().describe('Session UUID'),
   }),
 
-  async handler(args: { session_id: string }) {
+  async handler(args: { session_id: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Fetching queue status');
       const client = getVibeClient();
       const status = await client.getQueueStatus(args.session_id);
-      
+
+      await p.emit(1, 2, 'Done');
       if (status.type === 'Queued') {
         return formatSuccess({
           summary: formatQueueStatus(
@@ -630,11 +701,14 @@ export const cancelQueueTool = {
     session_id: z.string().uuid().describe('Session UUID'),
   }),
 
-  async handler(args: { session_id: string }) {
+  async handler(args: { session_id: string }, extra: Extra) {
+    const p = createProgressEmitter(extra);
     try {
+      await p.emit(0, 2, 'Cancelling queue');
       const client = getVibeClient();
       await client.cancelQueue(args.session_id);
-      
+
+      await p.emit(1, 2, 'Done');
       return formatSuccess({
         summary: `✅ **Queue Cancelled**
 • Session: \`${shortId(args.session_id)}\`
