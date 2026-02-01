@@ -44,22 +44,26 @@ The official Vibe Kanban MCP server has 13 tools that require passing `project_i
 ### Option 1: Using install-mcp CLI (Recommended)
 
 ```bash
-# For Claude Desktop
+# For Claude Desktop (single repo projects)
+npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
+  --env VIBE_PROJECT_ID=your-project-uuid
+
+# For projects with multiple repos (specify repo explicitly)
 npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
   --env VIBE_PROJECT_ID=your-project-uuid \
   --env VIBE_REPO_ID=your-repo-uuid
 
 # For Cursor
 npx install-mcp vibe-kanban-better-mcp --client cursor \
-  --env VIBE_PROJECT_ID=your-project-uuid \
-  --env VIBE_REPO_ID=your-repo-uuid
+  --env VIBE_PROJECT_ID=your-project-uuid
 
 # If Vibe Kanban runs on non-default port
 npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
   --env VIBE_PROJECT_ID=your-project-uuid \
-  --env VIBE_REPO_ID=your-repo-uuid \
   --env VIBE_API_URL=http://localhost:1990
 ```
+
+> **Note:** `VIBE_REPO_ID` is optional! If your project has only one repository, it will be auto-detected. Only specify it for multi-repo projects.
 
 ### Option 2: Manual Configuration
 
@@ -181,7 +185,7 @@ curl -s "http://localhost:9119/api/projects/YOUR_PROJECT_ID/repositories" | jq '
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `VIBE_PROJECT_ID` | ✅ Yes | - | UUID of your Vibe Kanban project |
-| `VIBE_REPO_ID` | ✅ Yes | - | UUID of the repository |
+| `VIBE_REPO_ID` | ⚠️ Optional | Auto-detected | UUID of the repository. Auto-detected if project has only one repo. |
 | `VIBE_API_URL` | No | `http://localhost:9119` | Vibe Kanban API URL |
 | `VIBE_WORKSPACE_ID` | No | - | For `get_context` in active sessions |
 

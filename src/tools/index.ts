@@ -229,12 +229,14 @@ export const startWorkspaceSessionTool = {
         args.task_id, args.executor, args.variant, args.base_branch
       );
       
+      const repoId = await client.getRepoIdResolved();
+      
       return result({
         success: true,
         workspace_id: workspace.id,
         task_id: workspace.task_id,
         executor: args.executor,
-        repo_id: client.getRepoId(),
+        repo_id: repoId,
       });
     } catch (e) {
       return result({ error: 'Failed to start session', message: String(e) }, true);

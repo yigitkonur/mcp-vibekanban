@@ -23,13 +23,39 @@ import type {
 export class VibeClient {
   private baseUrl: string;
   private projectId: string;
-  private repoId: string;
+  private repoId: string | null;
+  private _resolvedRepoId: string | null = null; // Cache for auto-fetched repo
 
   constructor() {
     const config = getConfig();
     this.baseUrl = config.baseUrl;
     this.projectId = config.projectId;
     this.repoId = config.repoId;
+  }
+
+  // Auto-fetch repo if not provided
+  private async getRepoId(): Promise<string> {
+    if (this.repoId) return this.repoId;
+    if (this._resolvedRepoId) return this._resolvedRepoId;
+
+    // Fetch repos for this project
+    interface Repo { id: string; name: string; }
+    const repos = await this.request<Repo[]>('GET', `/api/projects/${this.projectId}/repositories`);
+    
+    if (!repos || repos.length === 0) {
+      throw new Error(`No repositories found in project ${this.projectId}. Create a repository first.`);
+    }
+
+    if (repos.length > 1) {
+      throw new Error(
+        `Project has ${repos.length} repositories. Please set VIBE_REPO_ID explicitly.\n` +
+        `Available repos:\n` +
+        repos.map(r => `  - ${r.name} (${r.id})`).join('\n')
+      );
+    }
+
+    this._resolvedRepoId = repos[0].id;
+    return this._resolvedRepoId;
   }
 
   private url(path: string): string {
@@ -101,6 +127,7 @@ export class VibeClient {
 
   // Workspace Operations
   async startWorkspaceSession(taskId: string, executor: string, variant?: string, baseBranch?: string): Promise<Workspace> {
+    const repoId = await this.getRepoId();
     const normalizedExecutor = executor.trim().replace(/-/g, '_').toUpperCase();
     
     // Build payload - target_branch defaults to "main" if not specified
@@ -110,7 +137,7 @@ export class VibeClient {
         ? { executor: normalizedExecutor, variant }
         : { executor: normalizedExecutor },
       repos: [{ 
-        repo_id: this.repoId, 
+        repo_id: repoId, 
         target_branch: baseBranch || 'main' 
       }],
     };
@@ -146,7 +173,7 @@ export class VibeClient {
   }
 
   getProjectId(): string { return this.projectId; }
-  getRepoId(): string { return this.repoId; }
+  async getRepoIdResolved(): Promise<string> { return this.getRepoId(); }
 
   // ============================================
   // Session Operations
