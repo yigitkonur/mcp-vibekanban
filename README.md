@@ -16,6 +16,37 @@ PORT=1990 npx vibe-kanban
 
 This MCP server **connects directly** to your running Vibe Kanban instance - no custom setup required.
 
+## What's New in v1.4.0
+
+**Agent-Optimized Responses:** All tool responses now follow the MCP best practices 70/20/10 pattern:
+- **70% Summary** - Clear status indicators with emojis (✅ ⬜ 🔵 🟡)
+- **20% Data** - Structured markdown lists instead of raw JSON
+- **10% Next Steps** - Actionable follow-up commands with ready-to-use syntax
+
+**Improved Tool Descriptions:** Each tool now includes:
+- `<usecase>` - When to use this tool
+- `<when_not_to_use>` - Redirects to appropriate tools
+- `<example>` - Ready-to-copy usage examples
+
+**Before (v1.3.0):**
+```json
+{"count":4,"project_id":"7d2d...","tasks":[{"id":"5019...", ...}]}
+```
+
+**After (v1.4.0):**
+```
+📋 **4 Tasks**
+inreview: 3 • todo: 1
+
+---
+🟡 **Test task** (`5019ae11`)
+⬜ **Another task** (`3b3f5ff2`)
+
+**Next Steps:**
+→ Get task details: `get_task(task_id="TASK_ID")`
+→ Start working: `start_workspace_session(task_id="TASK_ID", executor="claude_code")`
+```
+
 ## What's New in v1.3.0
 
 **Fixed:** Network connectivity issues on ARM64 macOS (Apple Silicon) when connecting to LAN IPs. The HTTP client now uses `curl` subprocess instead of Node.js native HTTP clients, which fixes `EHOSTUNREACH` errors when connecting to non-localhost addresses.

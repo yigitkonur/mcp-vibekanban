@@ -1,57 +1,81 @@
 /**
- * All MCP Tools - Simplified for Vibe Kanban
+ * MCP Tools for Vibe Kanban - Agent-Optimized
  * 
- * 6 tools total (down from 13 in original):
- * - get_context: Get current workspace context
- * - list_tasks: List tasks in locked project
- * - create_task: Create task in locked project
- * - get_task: Get task details
- * - update_task: Update task
- * - delete_task: Delete task
- * - start_workspace_session: Start session with locked repo
+ * 12 tools with markdown responses following 70/20/10 pattern:
+ * - 70% Summary: Key insights, status
+ * - 20% Data: Structured lists/tables
+ * - 10% Next Steps: Suggested follow-up actions
  */
 
 import { z } from 'zod';
 import { getVibeClient } from '../api/client.js';
 import { getConfig } from '../config.js';
 import type { TaskStatus } from '../api/types.js';
-
-// Helper to create tool result
-const result = (data: unknown, isError = false) => ({
-  content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
-  ...(isError && { isError: true }),
-});
+import {
+  formatSuccess,
+  formatError,
+  formatTaskList,
+  formatSessionList,
+  formatTask,
+  formatWorkspaceInfo,
+  formatQueueStatus,
+  shortId,
+} from '../utils/formatter.js';
 
 // ============================================
 // get_context
 // ============================================
 export const getContextTool = {
   name: 'get_context',
-  description: 'Get current workspace context (project, task, workspace). Only works if VIBE_WORKSPACE_ID is set.',
+  description: `Get current workspace context.
+
+<usecase>Check active project, task, and workspace info.</usecase>
+
+<when_not_to_use>
+- To list tasks → use list_tasks
+- To get task details → use get_task
+</when_not_to_use>
+
+<example>get_context()</example>`,
   inputSchema: z.object({}),
   
   async handler() {
     const config = getConfig();
     
     if (!config.workspaceId) {
-      return result({
-        error: 'No active workspace',
-        hint: 'Set VIBE_WORKSPACE_ID for active session context',
-        project_id: config.projectId,
-        repo_id: config.repoId,
+      return formatSuccess({
+        summary: `📍 **Project Context**
+• Project: \`${shortId(config.projectId)}\`
+• Repo: ${config.repoId ? `\`${shortId(config.repoId)}\`` : '*auto-detect*'}
+• Workspace: *not set*`,
+        nextSteps: [
+          'Create a task: `create_task(title="My task")`',
+          'List existing tasks: `list_tasks()`',
+        ],
       });
     }
 
     try {
       const client = getVibeClient();
       const ctx = await client.getWorkspaceContext(config.workspaceId);
-      return result({
-        project: { id: ctx.project.id, name: ctx.project.name },
-        task: { id: ctx.task.id, title: ctx.task.title, status: ctx.task.status },
-        workspace: { id: ctx.workspace.id },
+      
+      return formatSuccess({
+        summary: `📍 **Active Workspace Context**
+• Project: **${ctx.project.name}** (\`${shortId(ctx.project.id)}\`)
+• Task: **${ctx.task.title}** [${ctx.task.status}]
+• Workspace: \`${shortId(ctx.workspace.id)}\``,
+        nextSteps: [
+          `List sessions: \`list_sessions(workspace_id="${ctx.workspace.id}")\``,
+          `Update task: \`update_task(task_id="${ctx.task.id}", status="done")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to get context', message: String(e) }, true);
+      return formatError({
+        type: 'CONTEXT_ERROR',
+        message: 'Failed to fetch workspace context',
+        context: { workspace_id: config.workspaceId },
+        howToFix: ['Verify VIBE_WORKSPACE_ID is correct', 'Check if workspace still exists'],
+      });
     }
   },
 };
@@ -61,7 +85,16 @@ export const getContextTool = {
 // ============================================
 export const listTasksTool = {
   name: 'list_tasks',
-  description: 'List tasks in the project (locked via VIBE_PROJECT_ID). Filter by status and limit results.',
+  description: `List tasks in the project.
+
+<usecase>View all tasks or filter by status (todo, inprogress, inreview, done, cancelled).</usecase>
+
+<parameters>
+- status (optional): Filter by status
+- limit (optional, default: 50): Max results
+</parameters>
+
+<example>list_tasks(status="inprogress", limit=10)</example>`,
   inputSchema: z.object({
     status: z.enum(['todo', 'inprogress', 'inreview', 'done', 'cancelled']).optional()
       .describe('Filter by status'),
@@ -74,19 +107,32 @@ export const listTasksTool = {
       const client = getVibeClient();
       const tasks = await client.listTasks(args.status, args.limit || 50);
       
-      return result({
-        count: tasks.length,
-        project_id: client.getProjectId(),
-        filters: { status: args.status || null, limit: args.limit || 50 },
-        tasks: tasks.map(t => ({
-          id: t.id,
-          title: t.title,
-          status: t.status,
-          updated_at: t.updated_at,
-        })),
+      // Count by status
+      const counts: Record<string, number> = {};
+      tasks.forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
+      
+      const statusFilter = args.status ? ` (${args.status})` : '';
+      const countSummary = Object.entries(counts)
+        .map(([s, c]) => `${s}: ${c}`)
+        .join(' • ');
+      
+      return formatSuccess({
+        summary: `📋 **${tasks.length} Tasks**${statusFilter}
+${countSummary || 'No tasks yet'}`,
+        data: formatTaskList(tasks),
+        nextSteps: tasks.length > 0
+          ? [
+              `Get task details: \`get_task(task_id="TASK_ID")\``,
+              `Start working: \`start_workspace_session(task_id="TASK_ID", executor="claude_code")\``,
+            ]
+          : [`Create first task: \`create_task(title="My task")\``],
       });
     } catch (e) {
-      return result({ error: 'Failed to list tasks', message: String(e) }, true);
+      return formatError({
+        type: 'LIST_TASKS_FAILED',
+        message: String(e),
+        howToFix: ['Check VIBE_API_URL is reachable', 'Verify VIBE_PROJECT_ID is valid'],
+      });
     }
   },
 };
@@ -96,7 +142,16 @@ export const listTasksTool = {
 // ============================================
 export const createTaskTool = {
   name: 'create_task',
-  description: 'Create a task in the project. Supports @tagname expansion in description.',
+  description: `Create a new task.
+
+<usecase>Add a task to the project. Supports @tagname expansion in description.</usecase>
+
+<parameters>
+- title (required): Task title
+- description (optional): Details, supports @tag expansion
+</parameters>
+
+<example>create_task(title="Add user auth", description="Implement OAuth with @google-auth")</example>`,
   inputSchema: z.object({
     title: z.string().min(1).max(500).describe('Task title (required)'),
     description: z.string().optional().describe('Task description (supports @tag expansion)'),
@@ -107,13 +162,23 @@ export const createTaskTool = {
       const client = getVibeClient();
       const task = await client.createTask(args.title, args.description);
       
-      return result({
-        success: true,
-        task_id: task.id,
-        task: { id: task.id, title: task.title, status: task.status },
+      return formatSuccess({
+        summary: `✅ **Task Created**
+• Title: **${task.title}**
+• ID: \`${task.id}\`
+• Status: ⬜ todo`,
+        nextSteps: [
+          `Start working: \`start_workspace_session(task_id="${task.id}", executor="claude_code")\``,
+          `Add details: \`update_task(task_id="${task.id}", description="...")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to create task', message: String(e) }, true);
+      return formatError({
+        type: 'CREATE_FAILED',
+        message: String(e),
+        context: { title: args.title },
+        howToFix: ['Check API connectivity', 'Verify project has write access'],
+      });
     }
   },
 };
@@ -123,7 +188,11 @@ export const createTaskTool = {
 // ============================================
 export const getTaskTool = {
   name: 'get_task',
-  description: 'Get task details by ID.',
+  description: `Get task details.
+
+<usecase>View full task information including description.</usecase>
+
+<example>get_task(task_id="abc123...")</example>`,
   inputSchema: z.object({
     task_id: z.string().uuid().describe('Task UUID'),
   }),
@@ -133,18 +202,22 @@ export const getTaskTool = {
       const client = getVibeClient();
       const task = await client.getTask(args.task_id);
       
-      return result({
-        task: {
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          status: task.status,
-          created_at: task.created_at,
-          updated_at: task.updated_at,
-        },
+      return formatSuccess({
+        summary: formatTask(task),
+        nextSteps: [
+          `Update: \`update_task(task_id="${task.id}", status="inprogress")\``,
+          `Start session: \`start_workspace_session(task_id="${task.id}", executor="claude_code")\``,
+          `Delete: \`delete_task(task_id="${task.id}")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to get task', task_id: args.task_id, message: String(e) }, true);
+      return formatError({
+        type: 'TASK_NOT_FOUND',
+        message: String(e),
+        context: { task_id: args.task_id },
+        howToFix: ['Verify task ID is correct', 'Task may have been deleted'],
+        alternatives: ['List all tasks: `list_tasks()`'],
+      });
     }
   },
 };
@@ -154,7 +227,18 @@ export const getTaskTool = {
 // ============================================
 export const updateTaskTool = {
   name: 'update_task',
-  description: 'Update task title, description, or status.',
+  description: `Update task properties.
+
+<usecase>Change task title, description, or status.</usecase>
+
+<parameters>
+- task_id (required): Task UUID
+- title (optional): New title
+- description (optional): New description
+- status (optional): todo | inprogress | inreview | done | cancelled
+</parameters>
+
+<example>update_task(task_id="abc123...", status="done")</example>`,
   inputSchema: z.object({
     task_id: z.string().uuid().describe('Task UUID'),
     title: z.string().min(1).max(500).optional().describe('New title'),
@@ -174,14 +258,27 @@ export const updateTaskTool = {
       if (args.status) updates.status = args.status;
 
       const task = await client.updateTask(args.task_id, updates);
+      const fields = Object.keys(updates).join(', ');
       
-      return result({
-        success: true,
-        task: { id: task.id, title: task.title, status: task.status },
-        updated_fields: Object.keys(updates),
+      return formatSuccess({
+        summary: `✅ **Task Updated** (${fields})
+• Title: **${task.title}**
+• Status: ${task.status}
+• ID: \`${shortId(task.id)}\``,
+        nextSteps: [
+          `View full task: \`get_task(task_id="${task.id}")\``,
+          task.status !== 'done' 
+            ? `Mark done: \`update_task(task_id="${task.id}", status="done")\``
+            : `Reopen: \`update_task(task_id="${task.id}", status="inprogress")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to update task', task_id: args.task_id, message: String(e) }, true);
+      return formatError({
+        type: 'UPDATE_FAILED',
+        message: String(e),
+        context: { task_id: args.task_id },
+        howToFix: ['Verify task exists', 'Check status value is valid'],
+      });
     }
   },
 };
@@ -191,7 +288,11 @@ export const updateTaskTool = {
 // ============================================
 export const deleteTaskTool = {
   name: 'delete_task',
-  description: 'Delete a task permanently.',
+  description: `Delete a task permanently.
+
+<usecase>Remove a task from the project. Cannot be undone.</usecase>
+
+<example>delete_task(task_id="abc123...")</example>`,
   inputSchema: z.object({
     task_id: z.string().uuid().describe('Task UUID'),
   }),
@@ -200,9 +301,23 @@ export const deleteTaskTool = {
     try {
       const client = getVibeClient();
       await client.deleteTask(args.task_id);
-      return result({ success: true, deleted_task_id: args.task_id });
+      
+      return formatSuccess({
+        summary: `🗑️ **Task Deleted**
+• ID: \`${args.task_id}\`
+• This action cannot be undone`,
+        nextSteps: [
+          `Create new task: \`create_task(title="...")\``,
+          `List remaining tasks: \`list_tasks()\``,
+        ],
+      });
     } catch (e) {
-      return result({ error: 'Failed to delete task', task_id: args.task_id, message: String(e) }, true);
+      return formatError({
+        type: 'DELETE_FAILED',
+        message: String(e),
+        context: { task_id: args.task_id },
+        howToFix: ['Verify task exists', 'Task may already be deleted'],
+      });
     }
   },
 };
@@ -214,12 +329,23 @@ const EXECUTORS = ['claude_code', 'amp', 'gemini', 'codex', 'opencode', 'cursor'
 
 export const startWorkspaceSessionTool = {
   name: 'start_workspace_session',
-  description: `Start coding session on a task. Repo is auto-set from VIBE_REPO_ID. Executors: ${EXECUTORS.join(', ')}`,
+  description: `Start a coding session for a task.
+
+<usecase>Launch a coding agent to work on a task. Creates workspace + session.</usecase>
+
+<parameters>
+- task_id (required): Task UUID
+- executor (required): ${EXECUTORS.join(' | ')}
+- variant (optional): e.g., PLAN, IMPLEMENT
+- base_branch (optional): Branch to work from (default: main)
+</parameters>
+
+<example>start_workspace_session(task_id="abc123...", executor="claude_code")</example>`,
   inputSchema: z.object({
     task_id: z.string().uuid().describe('Task UUID'),
-    executor: z.string().min(1).describe('Coding agent (e.g., claude_code, amp, gemini)'),
-    variant: z.string().optional().describe('Executor variant (e.g., PLAN)'),
-    base_branch: z.string().optional().describe('Base branch'),
+    executor: z.string().min(1).describe(`Executor: ${EXECUTORS.join(', ')}`),
+    variant: z.string().optional().describe('Variant (e.g., PLAN)'),
+    base_branch: z.string().optional().describe('Base branch (default: main)'),
   }),
 
   async handler(args: { task_id: string; executor: string; variant?: string; base_branch?: string }) {
@@ -231,15 +357,29 @@ export const startWorkspaceSessionTool = {
       
       const repoId = await client.getRepoIdResolved();
       
-      return result({
-        success: true,
-        workspace_id: workspace.id,
-        task_id: workspace.task_id,
-        executor: args.executor,
-        repo_id: repoId,
+      return formatSuccess({
+        summary: formatWorkspaceInfo({
+          workspace_id: workspace.id,
+          task_id: workspace.task_id,
+          executor: args.executor.toUpperCase(),
+          repo_id: repoId,
+        }),
+        nextSteps: [
+          `List sessions: \`list_sessions(workspace_id="${workspace.id}")\``,
+          `Send message: \`send_message(session_id="SESSION_ID", prompt="...")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to start session', message: String(e) }, true);
+      return formatError({
+        type: 'SESSION_START_FAILED',
+        message: String(e),
+        context: { task_id: args.task_id, executor: args.executor },
+        howToFix: [
+          'Verify task exists',
+          `Check executor is valid: ${EXECUTORS.join(', ')}`,
+          'Ensure repo is configured in project',
+        ],
+      });
     }
   },
 };
@@ -249,7 +389,11 @@ export const startWorkspaceSessionTool = {
 // ============================================
 export const listSessionsTool = {
   name: 'list_sessions',
-  description: 'List all sessions for a workspace. Each session tracks a conversation with a specific executor.',
+  description: `List sessions in a workspace.
+
+<usecase>See all executor sessions for a workspace. Each session tracks conversation with one executor.</usecase>
+
+<example>list_sessions(workspace_id="xyz789...")</example>`,
   inputSchema: z.object({
     workspace_id: z.string().uuid().describe('Workspace UUID'),
   }),
@@ -259,18 +403,27 @@ export const listSessionsTool = {
       const client = getVibeClient();
       const sessions = await client.listSessions(args.workspace_id);
       
-      return result({
-        count: sessions.length,
-        workspace_id: args.workspace_id,
-        sessions: sessions.map(s => ({
+      return formatSuccess({
+        summary: `📂 **${sessions.length} Session${sessions.length !== 1 ? 's' : ''}** in workspace \`${shortId(args.workspace_id)}\``,
+        data: formatSessionList(sessions.map(s => ({
           id: s.id,
-          executor: s.executor,
+          executor: s.executor || 'unknown',
           created_at: s.created_at,
-          updated_at: s.updated_at,
-        })),
+        }))),
+        nextSteps: sessions.length > 0
+          ? [
+              `Send message: \`send_message(session_id="${sessions[0].id}", prompt="...")\``,
+              `Get session details: \`get_session(session_id="${sessions[0].id}")\``,
+            ]
+          : ['Start a session first with `start_workspace_session`'],
       });
     } catch (e) {
-      return result({ error: 'Failed to list sessions', workspace_id: args.workspace_id, message: String(e) }, true);
+      return formatError({
+        type: 'LIST_SESSIONS_FAILED',
+        message: String(e),
+        context: { workspace_id: args.workspace_id },
+        howToFix: ['Verify workspace ID is correct'],
+      });
     }
   },
 };
@@ -280,7 +433,11 @@ export const listSessionsTool = {
 // ============================================
 export const getSessionTool = {
   name: 'get_session',
-  description: 'Get session details including executor info. Use this to check which executor is assigned to a session.',
+  description: `Get session details.
+
+<usecase>Check which executor is assigned and session state.</usecase>
+
+<example>get_session(session_id="sess123...")</example>`,
   inputSchema: z.object({
     session_id: z.string().uuid().describe('Session UUID'),
   }),
@@ -290,17 +447,23 @@ export const getSessionTool = {
       const client = getVibeClient();
       const session = await client.getSession(args.session_id);
       
-      return result({
-        session: {
-          id: session.id,
-          workspace_id: session.workspace_id,
-          executor: session.executor,
-          created_at: session.created_at,
-          updated_at: session.updated_at,
-        },
+      return formatSuccess({
+        summary: `📍 **Session Details**
+• ID: \`${session.id}\`
+• Executor: **${session.executor}**
+• Workspace: \`${shortId(session.workspace_id)}\``,
+        nextSteps: [
+          `Send message: \`send_message(session_id="${session.id}", prompt="...")\``,
+          `Check queue: \`get_queue_status(session_id="${session.id}")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to get session', session_id: args.session_id, message: String(e) }, true);
+      return formatError({
+        type: 'SESSION_NOT_FOUND',
+        message: String(e),
+        context: { session_id: args.session_id },
+        howToFix: ['Verify session ID', 'Session may have ended'],
+      });
     }
   },
 };
@@ -310,53 +473,61 @@ export const getSessionTool = {
 // ============================================
 export const sendMessageTool = {
   name: 'send_message',
-  description: `Send a follow-up message to an active session. The message will be sent to the coding agent (e.g., Claude Code). If the executor is busy, the message will be queued automatically (unless auto_queue is false). Executors: ${EXECUTORS.join(', ')}`,
+  description: `Send a message to a coding agent session.
+
+<usecase>Send follow-up instructions to an active session. Auto-queues if executor is busy.</usecase>
+
+<parameters>
+- session_id (required): Session UUID
+- prompt (required): Message to send
+- executor (optional): Auto-detected from session
+- auto_queue (optional, default: true): Queue if busy
+</parameters>
+
+<example>send_message(session_id="sess123...", prompt="Add error handling")</example>`,
   inputSchema: z.object({
     session_id: z.string().uuid().describe('Session UUID'),
-    prompt: z.string().min(1).describe('Message to send to the coding agent'),
-    executor: z.string().optional().describe('Executor name (auto-detected from session if omitted)'),
-    variant: z.string().optional().describe('Executor variant (e.g., PLAN)'),
-    auto_queue: z.boolean().optional().default(true).describe('If true, queue message when executor is busy instead of failing'),
+    prompt: z.string().min(1).describe('Message to send'),
+    executor: z.string().optional().describe('Executor (auto-detected if omitted)'),
+    variant: z.string().optional().describe('Variant (e.g., PLAN)'),
+    auto_queue: z.boolean().optional().default(true).describe('Queue if busy (default: true)'),
   }),
 
   async handler(args: { session_id: string; prompt: string; executor?: string; variant?: string; auto_queue?: boolean }) {
     try {
       const client = getVibeClient();
       
-      // Get session to determine executor if not provided
       const session = await client.getSession(args.session_id);
       const executor = args.executor || session.executor;
       
       if (!executor) {
-        return result({ 
-          error: 'Executor required', 
-          hint: 'Session has no prior executions. Provide executor parameter.',
-          session_id: args.session_id,
-        }, true);
+        return formatError({
+          type: 'EXECUTOR_REQUIRED',
+          message: 'Session has no prior executions. Provide executor parameter.',
+          context: { session_id: args.session_id },
+          howToFix: ['Specify executor: `send_message(..., executor="claude_code")`'],
+        });
       }
 
       const executorProfile = client.buildExecutorProfile(executor, args.variant);
       
       try {
-        // Try sending follow-up directly
         const process = await client.sendFollowUp(args.session_id, {
           prompt: args.prompt,
           executor_profile_id: executorProfile,
         });
         
-        return result({
-          success: true,
-          action: 'sent',
-          execution_process: {
-            id: process.id,
-            status: process.status,
-            started_at: process.started_at,
-          },
-          session_id: args.session_id,
-          executor: executor,
+        return formatSuccess({
+          summary: `✅ **Message Sent**
+• Executor: **${executor.toUpperCase()}**
+• Status: 🔵 Running
+• Process: \`${shortId(process.id)}\``,
+          nextSteps: [
+            `Check queue: \`get_queue_status(session_id="${args.session_id}")\``,
+            `Send another: \`send_message(session_id="${args.session_id}", prompt="...")\``,
+          ],
         });
       } catch (e) {
-        // If auto_queue enabled and error suggests busy, try queueing
         const errorStr = String(e);
         const shouldQueue = args.auto_queue !== false && (
           errorStr.includes('running') || 
@@ -371,20 +542,26 @@ export const sendMessageTool = {
             executor_profile_id: executorProfile,
           });
           
-          return result({
-            success: true,
-            action: 'queued',
-            queue_status: queueResult,
-            session_id: args.session_id,
-            executor: executor,
-            hint: 'Message queued. Will execute when current process completes.',
+          return formatSuccess({
+            summary: `📤 **Message Queued**
+• Executor: **${executor.toUpperCase()}** (busy)
+• Message will execute when current process completes`,
+            nextSteps: [
+              `Check queue: \`get_queue_status(session_id="${args.session_id}")\``,
+              `Cancel queue: \`cancel_queue(session_id="${args.session_id}")\``,
+            ],
           });
         }
         
         throw e;
       }
     } catch (e) {
-      return result({ error: 'Failed to send message', session_id: args.session_id, message: String(e) }, true);
+      return formatError({
+        type: 'SEND_FAILED',
+        message: String(e),
+        context: { session_id: args.session_id },
+        howToFix: ['Check session is active', 'Verify executor name'],
+      });
     }
   },
 };
@@ -394,7 +571,11 @@ export const sendMessageTool = {
 // ============================================
 export const getQueueStatusTool = {
   name: 'get_queue_status',
-  description: 'Check if a message is queued for a session. Returns the queued message content if present.',
+  description: `Check if a message is queued for a session.
+
+<usecase>See pending message when executor is busy.</usecase>
+
+<example>get_queue_status(session_id="sess123...")</example>`,
   inputSchema: z.object({
     session_id: z.string().uuid().describe('Session UUID'),
   }),
@@ -405,19 +586,32 @@ export const getQueueStatusTool = {
       const status = await client.getQueueStatus(args.session_id);
       
       if (status.type === 'Queued') {
-        return result({
-          has_queued_message: true,
-          queued_message: status.message.message,
-          executor: status.message.executor_profile_id.executor,
-          variant: status.message.executor_profile_id.variant,
+        return formatSuccess({
+          summary: formatQueueStatus(
+            true,
+            status.message.message,
+            status.message.executor_profile_id.executor
+          ),
+          nextSteps: [
+            `Cancel queue: \`cancel_queue(session_id="${args.session_id}")\``,
+            'Wait for current process to complete',
+          ],
         });
       } else {
-        return result({
-          has_queued_message: false,
+        return formatSuccess({
+          summary: formatQueueStatus(false),
+          nextSteps: [
+            `Send message: \`send_message(session_id="${args.session_id}", prompt="...")\``,
+          ],
         });
       }
     } catch (e) {
-      return result({ error: 'Failed to get queue status', session_id: args.session_id, message: String(e) }, true);
+      return formatError({
+        type: 'QUEUE_STATUS_FAILED',
+        message: String(e),
+        context: { session_id: args.session_id },
+        howToFix: ['Verify session ID'],
+      });
     }
   },
 };
@@ -427,7 +621,11 @@ export const getQueueStatusTool = {
 // ============================================
 export const cancelQueueTool = {
   name: 'cancel_queue',
-  description: 'Cancel a queued message for a session.',
+  description: `Cancel a queued message.
+
+<usecase>Remove pending message from queue.</usecase>
+
+<example>cancel_queue(session_id="sess123...")</example>`,
   inputSchema: z.object({
     session_id: z.string().uuid().describe('Session UUID'),
   }),
@@ -437,13 +635,22 @@ export const cancelQueueTool = {
       const client = getVibeClient();
       await client.cancelQueue(args.session_id);
       
-      return result({
-        success: true,
-        message: 'Queued message cancelled',
-        session_id: args.session_id,
+      return formatSuccess({
+        summary: `✅ **Queue Cancelled**
+• Session: \`${shortId(args.session_id)}\`
+• Pending message removed`,
+        nextSteps: [
+          `Send new message: \`send_message(session_id="${args.session_id}", prompt="...")\``,
+          `Check status: \`get_queue_status(session_id="${args.session_id}")\``,
+        ],
       });
     } catch (e) {
-      return result({ error: 'Failed to cancel queue', session_id: args.session_id, message: String(e) }, true);
+      return formatError({
+        type: 'CANCEL_FAILED',
+        message: String(e),
+        context: { session_id: args.session_id },
+        howToFix: ['Queue may already be empty', 'Verify session ID'],
+      });
     }
   },
 };
