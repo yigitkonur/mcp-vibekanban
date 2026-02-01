@@ -12,6 +12,12 @@ import type {
   ApiResponse,
   Tag,
   TaskStatus,
+  Session,
+  ExecutionProcess,
+  CreateFollowUpRequest,
+  QueueMessageRequest,
+  QueueStatus,
+  ExecutorProfileId,
 } from './types.js';
 
 export class VibeClient {
@@ -141,6 +147,40 @@ export class VibeClient {
 
   getProjectId(): string { return this.projectId; }
   getRepoId(): string { return this.repoId; }
+
+  // ============================================
+  // Session Operations
+  // ============================================
+
+  async listSessions(workspaceId: string): Promise<Session[]> {
+    return this.request<Session[]>('GET', `/api/sessions?workspace_id=${workspaceId}`);
+  }
+
+  async getSession(sessionId: string): Promise<Session> {
+    return this.request<Session>('GET', `/api/sessions/${sessionId}`);
+  }
+
+  async sendFollowUp(sessionId: string, request: CreateFollowUpRequest): Promise<ExecutionProcess> {
+    return this.request<ExecutionProcess>('POST', `/api/sessions/${sessionId}/follow-up`, request);
+  }
+
+  async queueMessage(sessionId: string, request: QueueMessageRequest): Promise<QueueStatus> {
+    return this.request<QueueStatus>('POST', `/api/sessions/${sessionId}/queue`, request);
+  }
+
+  async getQueueStatus(sessionId: string): Promise<QueueStatus> {
+    return this.request<QueueStatus>('GET', `/api/sessions/${sessionId}/queue`);
+  }
+
+  async cancelQueue(sessionId: string): Promise<QueueStatus> {
+    return this.request<QueueStatus>('DELETE', `/api/sessions/${sessionId}/queue`);
+  }
+
+  // Helper to build ExecutorProfileId
+  buildExecutorProfile(executor: string, variant?: string): ExecutorProfileId {
+    const normalized = executor.trim().replace(/-/g, '_').toUpperCase();
+    return variant ? { executor: normalized, variant } : { executor: normalized };
+  }
 }
 
 let clientInstance: VibeClient | null = null;

@@ -242,6 +242,210 @@ export const startWorkspaceSessionTool = {
   },
 };
 
+// ============================================
+// list_sessions
+// ============================================
+export const listSessionsTool = {
+  name: 'list_sessions',
+  description: 'List all sessions for a workspace. Each session tracks a conversation with a specific executor.',
+  inputSchema: z.object({
+    workspace_id: z.string().uuid().describe('Workspace UUID'),
+  }),
+
+  async handler(args: { workspace_id: string }) {
+    try {
+      const client = getVibeClient();
+      const sessions = await client.listSessions(args.workspace_id);
+      
+      return result({
+        count: sessions.length,
+        workspace_id: args.workspace_id,
+        sessions: sessions.map(s => ({
+          id: s.id,
+          executor: s.executor,
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+        })),
+      });
+    } catch (e) {
+      return result({ error: 'Failed to list sessions', workspace_id: args.workspace_id, message: String(e) }, true);
+    }
+  },
+};
+
+// ============================================
+// get_session
+// ============================================
+export const getSessionTool = {
+  name: 'get_session',
+  description: 'Get session details including executor info. Use this to check which executor is assigned to a session.',
+  inputSchema: z.object({
+    session_id: z.string().uuid().describe('Session UUID'),
+  }),
+
+  async handler(args: { session_id: string }) {
+    try {
+      const client = getVibeClient();
+      const session = await client.getSession(args.session_id);
+      
+      return result({
+        session: {
+          id: session.id,
+          workspace_id: session.workspace_id,
+          executor: session.executor,
+          created_at: session.created_at,
+          updated_at: session.updated_at,
+        },
+      });
+    } catch (e) {
+      return result({ error: 'Failed to get session', session_id: args.session_id, message: String(e) }, true);
+    }
+  },
+};
+
+// ============================================
+// send_message
+// ============================================
+export const sendMessageTool = {
+  name: 'send_message',
+  description: `Send a follow-up message to an active session. The message will be sent to the coding agent (e.g., Claude Code). If the executor is busy, the message will be queued automatically (unless auto_queue is false). Executors: ${EXECUTORS.join(', ')}`,
+  inputSchema: z.object({
+    session_id: z.string().uuid().describe('Session UUID'),
+    prompt: z.string().min(1).describe('Message to send to the coding agent'),
+    executor: z.string().optional().describe('Executor name (auto-detected from session if omitted)'),
+    variant: z.string().optional().describe('Executor variant (e.g., PLAN)'),
+    auto_queue: z.boolean().optional().default(true).describe('If true, queue message when executor is busy instead of failing'),
+  }),
+
+  async handler(args: { session_id: string; prompt: string; executor?: string; variant?: string; auto_queue?: boolean }) {
+    try {
+      const client = getVibeClient();
+      
+      // Get session to determine executor if not provided
+      const session = await client.getSession(args.session_id);
+      const executor = args.executor || session.executor;
+      
+      if (!executor) {
+        return result({ 
+          error: 'Executor required', 
+          hint: 'Session has no prior executions. Provide executor parameter.',
+          session_id: args.session_id,
+        }, true);
+      }
+
+      const executorProfile = client.buildExecutorProfile(executor, args.variant);
+      
+      try {
+        // Try sending follow-up directly
+        const process = await client.sendFollowUp(args.session_id, {
+          prompt: args.prompt,
+          executor_profile_id: executorProfile,
+        });
+        
+        return result({
+          success: true,
+          action: 'sent',
+          execution_process: {
+            id: process.id,
+            status: process.status,
+            started_at: process.started_at,
+          },
+          session_id: args.session_id,
+          executor: executor,
+        });
+      } catch (e) {
+        // If auto_queue enabled and error suggests busy, try queueing
+        const errorStr = String(e);
+        const shouldQueue = args.auto_queue !== false && (
+          errorStr.includes('running') || 
+          errorStr.includes('busy') ||
+          errorStr.includes('409') ||
+          errorStr.includes('conflict')
+        );
+        
+        if (shouldQueue) {
+          const queueResult = await client.queueMessage(args.session_id, {
+            message: args.prompt,
+            executor_profile_id: executorProfile,
+          });
+          
+          return result({
+            success: true,
+            action: 'queued',
+            queue_status: queueResult,
+            session_id: args.session_id,
+            executor: executor,
+            hint: 'Message queued. Will execute when current process completes.',
+          });
+        }
+        
+        throw e;
+      }
+    } catch (e) {
+      return result({ error: 'Failed to send message', session_id: args.session_id, message: String(e) }, true);
+    }
+  },
+};
+
+// ============================================
+// get_queue_status
+// ============================================
+export const getQueueStatusTool = {
+  name: 'get_queue_status',
+  description: 'Check if a message is queued for a session. Returns the queued message content if present.',
+  inputSchema: z.object({
+    session_id: z.string().uuid().describe('Session UUID'),
+  }),
+
+  async handler(args: { session_id: string }) {
+    try {
+      const client = getVibeClient();
+      const status = await client.getQueueStatus(args.session_id);
+      
+      if (status.type === 'Queued') {
+        return result({
+          has_queued_message: true,
+          queued_message: status.message.message,
+          executor: status.message.executor_profile_id.executor,
+          variant: status.message.executor_profile_id.variant,
+        });
+      } else {
+        return result({
+          has_queued_message: false,
+        });
+      }
+    } catch (e) {
+      return result({ error: 'Failed to get queue status', session_id: args.session_id, message: String(e) }, true);
+    }
+  },
+};
+
+// ============================================
+// cancel_queue
+// ============================================
+export const cancelQueueTool = {
+  name: 'cancel_queue',
+  description: 'Cancel a queued message for a session.',
+  inputSchema: z.object({
+    session_id: z.string().uuid().describe('Session UUID'),
+  }),
+
+  async handler(args: { session_id: string }) {
+    try {
+      const client = getVibeClient();
+      await client.cancelQueue(args.session_id);
+      
+      return result({
+        success: true,
+        message: 'Queued message cancelled',
+        session_id: args.session_id,
+      });
+    } catch (e) {
+      return result({ error: 'Failed to cancel queue', session_id: args.session_id, message: String(e) }, true);
+    }
+  },
+};
+
 // Export all tools as array
 export const allTools = [
   getContextTool,
@@ -251,4 +455,9 @@ export const allTools = [
   updateTaskTool,
   deleteTaskTool,
   startWorkspaceSessionTool,
+  listSessionsTool,
+  getSessionTool,
+  sendMessageTool,
+  getQueueStatusTool,
+  cancelQueueTool,
 ];

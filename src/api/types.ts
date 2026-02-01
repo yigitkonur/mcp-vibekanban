@@ -48,3 +48,72 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
 }
+
+// ============================================
+// Session & Execution Types
+// ============================================
+
+export interface Session {
+  id: string;
+  workspace_id: string;
+  executor: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExecutorProfileId {
+  executor: string;
+  variant?: string | null;
+}
+
+export type ExecutionProcessStatus = 'running' | 'completed' | 'failed' | 'killed';
+export type ExecutionProcessRunReason = 'coding_agent' | 'setup' | 'cleanup' | 'dev_server' | 'review';
+
+export interface ExecutorAction {
+  action_type: ExecutorActionType;
+  cleanup_action?: unknown;
+}
+
+export interface ExecutorActionType {
+  type: string;
+  prompt?: string;
+  executor_profile_id?: ExecutorProfileId;
+  session_id?: string;
+  working_dir?: string;
+}
+
+export interface ExecutionProcess {
+  id: string;
+  session_id: string;
+  run_reason: ExecutionProcessRunReason;
+  executor_action: ExecutorAction;
+  status: ExecutionProcessStatus;
+  exit_code: number | null;
+  dropped: boolean;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DraftFollowUpData {
+  message: string;
+  executor_profile_id: ExecutorProfileId;
+}
+
+export type QueueStatus = 
+  | { type: 'Queued'; message: DraftFollowUpData }
+  | { type: 'Empty' };
+
+export interface CreateFollowUpRequest {
+  prompt: string;
+  executor_profile_id: ExecutorProfileId;
+  retry_process_id?: string | null;
+  force_when_dirty?: boolean | null;
+  perform_git_reset?: boolean | null;
+}
+
+export interface QueueMessageRequest {
+  message: string;
+  executor_profile_id: ExecutorProfileId;
+}

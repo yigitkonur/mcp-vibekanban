@@ -1,12 +1,12 @@
 # vibe-kanban-better-mcp
 
-🚀 **Enhanced MCP server for [Vibe Kanban](https://github.com/BloopAI/vibe-kanban)** - Simplified tools with environment-based project/repo locking.
+🚀 **Enhanced MCP server for [Vibe Kanban](https://github.com/BloopAI/vibe-kanban)** - Simplified tools with environment-based project/repo locking + session messaging.
 
 ## Why This Exists
 
-The official Vibe Kanban MCP server has 13 tools that require passing `project_id` and `repo_id` in every call. This package simplifies it to **6 essential tools** with IDs locked via environment variables.
+The official Vibe Kanban MCP server has 13 tools that require passing `project_id` and `repo_id` in every call. This package simplifies it to **12 focused tools** with IDs locked via environment variables, plus adds **session messaging** capabilities.
 
-| Official MCP (13 tools) | This MCP (6 tools) |
+| Official MCP (13 tools) | This MCP (12 tools) |
 |-------------------------|-------------------|
 | `list_projects` | ❌ Removed (locked via env) |
 | `list_repos` | ❌ Removed (locked via env) |
@@ -19,6 +19,11 @@ The official Vibe Kanban MCP server has 13 tools that require passing `project_i
 | `get_task`, `update_task`, `delete_task` | ✅ Same |
 | `start_workspace_session(repos[], ...)` | ✅ `start_workspace_session(task_id, executor)` |
 | `get_context` | ✅ Same |
+| - | ✅ **NEW:** `list_sessions` |
+| - | ✅ **NEW:** `get_session` |
+| - | ✅ **NEW:** `send_message` |
+| - | ✅ **NEW:** `get_queue_status` |
+| - | ✅ **NEW:** `cancel_queue` |
 
 ## Quick Install
 
@@ -99,6 +104,8 @@ Or check the URL when viewing a project/repo in the UI.
 
 ## Available Tools
 
+### Task Management
+
 | Tool | Description |
 |------|-------------|
 | `get_context` | Get current workspace context (project, task, workspace info) |
@@ -107,7 +114,33 @@ Or check the URL when viewing a project/repo in the UI.
 | `get_task` | Get task details by ID |
 | `update_task` | Update task title/description/status |
 | `delete_task` | Delete a task |
-| `start_workspace_session` | Start a coding agent session |
+
+### Session Management
+
+| Tool | Description |
+|------|-------------|
+| `start_workspace_session` | Start a coding agent session for a task |
+| `list_sessions` | List all sessions for a workspace |
+| `get_session` | Get session details (including assigned executor) |
+
+### Messaging (NEW in v1.1.0)
+
+| Tool | Description |
+|------|-------------|
+| `send_message` | Send a follow-up message to an active coding agent session |
+| `get_queue_status` | Check if a message is queued (when executor is busy) |
+| `cancel_queue` | Cancel a queued message |
+
+## Session Messaging Workflow
+
+```
+1. Create task        → create_task(title: "Add auth")
+2. Start session      → start_workspace_session(task_id, executor: "claude_code")
+3. List sessions      → list_sessions(workspace_id) → get session_id
+4. Send message       → send_message(session_id, prompt: "Add OAuth support")
+5. If busy, auto-queues → get_queue_status(session_id)
+6. Cancel if needed   → cancel_queue(session_id)
+```
 
 ## Environment Variables
 
@@ -167,6 +200,17 @@ AI: "Show me all in-progress tasks"
 
 AI: "Mark task abc123 as done"
 → update_task(task_id: "abc123", status: "done")
+```
+
+### Send Message to Active Session (NEW)
+
+```
+AI: "Send a message to the coding agent"
+→ list_sessions(workspace_id: "xyz789")
+→ Returns: [{ id: "session123", executor: "CLAUDE_CODE" }]
+
+→ send_message(session_id: "session123", prompt: "Add OAuth support")
+→ Returns: { action: "sent", execution_process: { id, status: "running" } }
 ```
 
 ## Supported Executors
