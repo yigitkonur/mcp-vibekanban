@@ -16,6 +16,10 @@ PORT=1990 npx vibe-kanban
 
 This MCP server **connects directly** to your running Vibe Kanban instance - no custom setup required.
 
+## What's New in v1.3.0
+
+**Fixed:** Network connectivity issues on ARM64 macOS (Apple Silicon) when connecting to LAN IPs. The HTTP client now uses `curl` subprocess instead of Node.js native HTTP clients, which fixes `EHOSTUNREACH` errors when connecting to non-localhost addresses.
+
 ## Why This Exists
 
 The official Vibe Kanban MCP server has 13 tools that require passing `project_id` and `repo_id` in every call. This package simplifies it to **12 focused tools** with IDs locked via environment variables, plus adds **session messaging** capabilities (not in official MCP).

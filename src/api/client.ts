@@ -1,8 +1,12 @@
 /**
  * HTTP Client for Vibe Kanban API
  * All requests are scoped to the locked project/repo from config
+ * 
+ * Uses curl subprocess for HTTP requests to work around ARM64 macOS socket issues
+ * where Node.js native fetch/axios get EHOSTUNREACH on LAN IPs but curl works fine.
  */
 
+import { spawnSync } from 'child_process';
 import { getConfig } from '../config.js';
 import type {
   Task,
@@ -19,6 +23,11 @@ import type {
   QueueStatus,
   ExecutorProfileId,
 } from './types.js';
+
+interface Repo {
+  id: string;
+  name: string;
+}
 
 export class VibeClient {
   private baseUrl: string;
@@ -39,7 +48,6 @@ export class VibeClient {
     if (this._resolvedRepoId) return this._resolvedRepoId;
 
     // Fetch repos for this project
-    interface Repo { id: string; name: string; }
     const repos = await this.request<Repo[]>('GET', `/api/projects/${this.projectId}/repositories`);
     
     if (!repos || repos.length === 0) {
@@ -58,35 +66,66 @@ export class VibeClient {
     return this._resolvedRepoId;
   }
 
-  private url(path: string): string {
-    return `${this.baseUrl}${path.startsWith('/') ? path : '/' + path}`;
-  }
-
+  /**
+   * Make HTTP request using curl subprocess.
+   * This workaround is needed because ARM64 macOS has socket connectivity issues
+   * with Node.js native fetch/axios for LAN IPs, but curl works reliably.
+   */
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const url = this.url(path);
-    const options: RequestInit = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    };
+    const url = `${this.baseUrl}${path}`;
+    
+    // Build curl arguments as array (spawnSync handles escaping properly)
+    const curlArgs = [
+      '-s', // silent
+      '-S', // show errors
+      '--max-time', '30', // 30 second timeout
+      '-X', method,
+      '-H', 'Content-Type: application/json',
+      '-H', 'Accept: application/json',
+    ];
 
     if (body) {
-      options.body = JSON.stringify(body);
+      curlArgs.push('-d', JSON.stringify(body));
     }
 
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`API error ${response.status}: ${text}`);
-    }
+    curlArgs.push(url);
 
-    const json = await response.json() as ApiResponse<T>;
-    
-    if (!json.success) {
-      throw new Error(json.message || 'API returned unsuccessful response');
-    }
+    try {
+      // Execute curl with proper argument handling (spawnSync preserves args)
+      const result = spawnSync('curl', curlArgs, {
+        encoding: 'utf-8',
+        timeout: 35000,
+        maxBuffer: 10 * 1024 * 1024,
+      });
 
-    return json.data as T;
+      if (result.error) {
+        throw new Error(`curl execution failed: ${result.error.message}`);
+      }
+
+      if (result.status !== 0) {
+        const stderr = result.stderr?.trim() || '';
+        throw new Error(`HTTP request failed (curl exit ${result.status}): ${stderr}`);
+      }
+
+      const output = result.stdout;
+      if (!output || output.trim() === '') {
+        // For DELETE requests that return 204 No Content
+        return {} as T;
+      }
+
+      const json: ApiResponse<T> = JSON.parse(output);
+      
+      if (!json.success) {
+        throw new Error(json.message || 'API returned unsuccessful response');
+      }
+
+      return json.data as T;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`API error: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   // Task Operations
