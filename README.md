@@ -2,9 +2,23 @@
 
 🚀 **Enhanced MCP server for [Vibe Kanban](https://github.com/BloopAI/vibe-kanban)** - Simplified tools with environment-based project/repo locking + session messaging.
 
+## Prerequisites
+
+You need **Vibe Kanban running** (the original project):
+
+```bash
+# Start Vibe Kanban (runs on port 9119 by default)
+npx vibe-kanban
+
+# Or on a custom port
+PORT=1990 npx vibe-kanban
+```
+
+This MCP server **connects directly** to your running Vibe Kanban instance - no custom setup required.
+
 ## Why This Exists
 
-The official Vibe Kanban MCP server has 13 tools that require passing `project_id` and `repo_id` in every call. This package simplifies it to **12 focused tools** with IDs locked via environment variables, plus adds **session messaging** capabilities.
+The official Vibe Kanban MCP server has 13 tools that require passing `project_id` and `repo_id` in every call. This package simplifies it to **12 focused tools** with IDs locked via environment variables, plus adds **session messaging** capabilities (not in official MCP).
 
 | Official MCP (13 tools) | This MCP (12 tools) |
 |-------------------------|-------------------|
@@ -35,8 +49,16 @@ npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
   --env VIBE_PROJECT_ID=your-project-uuid \
   --env VIBE_REPO_ID=your-repo-uuid
 
-# For other MCP clients
-npx install-mcp vibe-kanban-better-mcp --client cursor
+# For Cursor
+npx install-mcp vibe-kanban-better-mcp --client cursor \
+  --env VIBE_PROJECT_ID=your-project-uuid \
+  --env VIBE_REPO_ID=your-repo-uuid
+
+# If Vibe Kanban runs on non-default port
+npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
+  --env VIBE_PROJECT_ID=your-project-uuid \
+  --env VIBE_REPO_ID=your-repo-uuid \
+  --env VIBE_API_URL=http://localhost:1990
 ```
 
 ### Option 2: Manual Configuration
@@ -53,7 +75,8 @@ Add to your MCP client config:
       "args": ["-y", "vibe-kanban-better-mcp"],
       "env": {
         "VIBE_PROJECT_ID": "your-project-uuid-here",
-        "VIBE_REPO_ID": "your-repo-uuid-here"
+        "VIBE_REPO_ID": "your-repo-uuid-here",
+        "VIBE_API_URL": "http://localhost:9119"
       }
     }
   }
@@ -70,37 +93,48 @@ Add to your MCP client config:
       "args": ["-y", "vibe-kanban-better-mcp"],
       "env": {
         "VIBE_PROJECT_ID": "your-project-uuid-here",
-        "VIBE_REPO_ID": "your-repo-uuid-here"
+        "VIBE_REPO_ID": "your-repo-uuid-here",
+        "VIBE_API_URL": "http://localhost:9119"
       }
     }
   }
 }
 ```
 
-### Option 3: Run Directly
+### Option 3: Run Directly (for testing)
 
 ```bash
 # Set environment variables
 export VIBE_PROJECT_ID=your-project-uuid
 export VIBE_REPO_ID=your-repo-uuid
+export VIBE_API_URL=http://localhost:9119  # or your custom port
 
-# Run the MCP server
+# Run the MCP server (STDIO mode)
 npx vibe-kanban-better-mcp
 ```
 
 ## Finding Your UUIDs
 
-Open Vibe Kanban (http://localhost:9119) and use the API:
+**Option A: From Vibe Kanban UI**
+1. Open Vibe Kanban in browser (e.g., http://localhost:9119)
+2. Click on a project → URL shows project ID
+3. Click on a repo → URL shows repo ID
 
+**Option B: From API**
 ```bash
-# List projects
+# List projects (replace port if needed)
 curl -s http://localhost:9119/api/projects | jq '.data[] | {id, name}'
 
 # List repos in a project
 curl -s "http://localhost:9119/api/projects/YOUR_PROJECT_ID/repositories" | jq '.data[] | {id, name}'
 ```
 
-Or check the URL when viewing a project/repo in the UI.
+**Your current setup:**
+```bash
+# Project ID: 2747a217-e96b-415a-90f0-40b5257779b2
+# Repo ID: 73fa23bc-a0e5-4ca7-a446-82d7cc5ef72c
+# Vibe Kanban URL: http://localhost:1990
+```
 
 ## Available Tools
 
