@@ -214,6 +214,60 @@ Add to `.cursor/mcp.json` (or equivalent):
 
 ---
 
+## 🌐 Transport Modes
+
+Vibe Kanban supports three transport modes:
+
+| Mode | Use Case | How to Start |
+|------|----------|-------------|
+| **STDIO** (default) | Claude Desktop, Cursor, Windsurf | `npx mcp-vibekanban` |
+| **HTTP Streamable** | Self-hosted, Docker, LAN sharing | `MCP_TRANSPORT=http npx mcp-vibekanban` |
+| **Cloudflare Workers** | Serverless, globally distributed | Already deployed ↓ |
+
+### Remote MCP (Cloudflare Workers)
+
+A remote MCP endpoint is deployed and ready to use:
+
+```
+https://mcp-vibekanban.seodoold.workers.dev/mcp
+```
+
+Connect from any MCP client that supports HTTP Streamable transport:
+
+```json
+{
+  "mcpServers": {
+    "vibekanban-remote": {
+      "type": "streamable-http",
+      "url": "https://mcp-vibekanban.seodoold.workers.dev/mcp"
+    }
+  }
+}
+```
+
+### Self-Hosted HTTP Streamable
+
+```bash
+# Start on default port 3001
+MCP_TRANSPORT=http npx mcp-vibekanban
+
+# Custom port
+MCP_TRANSPORT=http MCP_PORT=8080 npx mcp-vibekanban
+```
+
+```json
+{
+  "mcpServers": {
+    "vibekanban-http": {
+      "type": "streamable-http",
+      "url": "http://localhost:3001/mcp"
+    }
+  }
+}
+```
+
+---
+
 ## 🎮 Tool Reference
 
 `mcp-vibekanban` exposes **12 MCP tools** across three categories:
