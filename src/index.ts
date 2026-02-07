@@ -6,7 +6,7 @@
  * - Resources with subscription support
  * - Task primitive for async execution tracking
  * - Project/repo locked via environment variables
- * - STDIO transport (use MCP proxy for remote access)
+ * - STDIO (default) or HTTP Streamable transport (MCP_TRANSPORT=http)
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -22,21 +22,17 @@ import { loadConfig } from './config.js';
 import { allTools } from './tools/index.js';
 import { registerResourceHandlers, createSubscriptionManager } from './resources.js';
 
+const SERVER_NAME = 'mcp-vibekanban';
+const SERVER_VERSION = '3.1.1';
+
 const toolMap = new Map(allTools.map(t => [t.name, t]));
 
-async function main() {
-  // Validate config (exits if env vars missing)
-  const config = loadConfig();
-
-  console.error('[vibe-kanban-mcp] Starting...');
-  console.error(`[vibe-kanban-mcp] Project: ${config.projectId}`);
-  console.error(`[vibe-kanban-mcp] Repo: ${config.repoId}`);
-  console.error(`[vibe-kanban-mcp] API: ${config.baseUrl}`);
-
+/** Creates a configured MCP Server instance */
+function createMCPServer(config: ReturnType<typeof loadConfig>) {
   const taskStore = new InMemoryTaskStore();
 
   const server = new Server(
-    { name: 'vibe-kanban-better-mcp', version: '2.0.0' },
+    { name: SERVER_NAME, version: SERVER_VERSION },
     {
       capabilities: {
         tools: {},
@@ -88,21 +84,102 @@ async function main() {
   const subMgr = createSubscriptionManager(server, config);
   registerResourceHandlers(server, subMgr);
 
-  // Graceful shutdown
-  process.on('SIGINT', () => {
-    subMgr.stopPolling();
-    process.exit(0);
-  });
+  return { server, subMgr };
+}
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+async function main() {
+  // Validate config (exits if env vars missing)
+  const config = loadConfig();
 
-  console.error(`[vibe-kanban-mcp] Ready. Tools: ${allTools.map(t => t.name).join(', ')}`);
-  console.error('[vibe-kanban-mcp] Resources: vibe://tasks, vibe://context, vibe://tasks/{id}, vibe://sessions/{id}, vibe://sessions/{id}/queue');
-  console.error('[vibe-kanban-mcp] Tasks: enabled (InMemoryTaskStore)');
+  console.error(`[${SERVER_NAME}] Starting...`);
+  console.error(`[${SERVER_NAME}] Project: ${config.projectId}`);
+  console.error(`[${SERVER_NAME}] Repo: ${config.repoId}`);
+  console.error(`[${SERVER_NAME}] API: ${config.baseUrl}`);
+
+  const transportMode = (process.env.MCP_TRANSPORT || 'stdio').toLowerCase();
+
+  if (transportMode === 'http') {
+    // HTTP Streamable transport
+    const { StreamableHTTPServerTransport } = await import(
+      '@modelcontextprotocol/sdk/server/streamableHttp.js'
+    );
+    const { createServer: createHttpServer } = await import('node:http');
+    const { randomUUID } = await import('node:crypto');
+
+    const PORT = parseInt(process.env.MCP_PORT || '3000', 10);
+    const sessions = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>();
+
+    const httpServer = createHttpServer(async (req, res) => {
+      const url = new URL(req.url || '/', `http://localhost:${PORT}`);
+
+      if (url.pathname === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', name: SERVER_NAME, version: SERVER_VERSION }));
+        return;
+      }
+
+      if (url.pathname === '/mcp') {
+        if (req.method === 'DELETE') {
+          const sessionId = req.headers['mcp-session-id'] as string | undefined;
+          if (sessionId && sessions.has(sessionId)) {
+            await sessions.get(sessionId)!.handleRequest(req, res);
+            sessions.delete(sessionId);
+          } else {
+            res.writeHead(404).end('Session not found');
+          }
+          return;
+        }
+
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+        if (sessionId && sessions.has(sessionId)) {
+          await sessions.get(sessionId)!.handleRequest(req, res);
+        } else if (!sessionId && req.method === 'POST') {
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (id) => {
+              sessions.set(id, transport);
+              console.error(`[HTTP] Session ${id} initialized`);
+            },
+            onsessionclosed: (id) => {
+              sessions.delete(id);
+              console.error(`[HTTP] Session ${id} closed`);
+            },
+          });
+
+          const { server } = createMCPServer(config);
+          await server.connect(transport);
+          await transport.handleRequest(req, res);
+        } else {
+          res.writeHead(400).end('Bad request — missing session ID');
+        }
+        return;
+      }
+
+      res.writeHead(404).end('Not found');
+    });
+
+    httpServer.listen(PORT, () => {
+      console.error(`🚀 ${SERVER_NAME} v${SERVER_VERSION} listening on http://localhost:${PORT}/mcp`);
+    });
+  } else {
+    // STDIO transport (default)
+    const { server, subMgr } = createMCPServer(config);
+
+    process.on('SIGINT', () => {
+      subMgr.stopPolling();
+      process.exit(0);
+    });
+
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+
+    console.error(`🚀 ${SERVER_NAME} v${SERVER_VERSION} ready (stdio)`);
+    console.error(`[${SERVER_NAME}] Tools: ${allTools.map(t => t.name).join(', ')}`);
+  }
 }
 
 main().catch(e => {
-  console.error('[vibe-kanban-mcp] Fatal:', e);
+  console.error(`[${SERVER_NAME}] Fatal:`, e);
   process.exit(1);
 });
