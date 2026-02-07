@@ -1,309 +1,601 @@
-# vibe-kanban-better-mcp
+<h1 align="center">📋 Vibe Kanban MCP 📋</h1>
 
-🚀 **Enhanced MCP server for [Vibe Kanban](https://github.com/BloopAI/vibe-kanban)** - Simplified tools with environment-based project/repo locking + session messaging.
+<h3 align="center">Stop context-switching. Start shipping from your AI session.</h3>
 
-## Prerequisites
+<p align="center">
+  <strong>
+    <em>The MCP bridge between your AI coding assistant and Vibe Kanban. Create tasks, launch workspace sessions, and message coding agents — all without leaving your editor.</em>
+  </strong>
+</p>
 
-You need **Vibe Kanban running** (the original project):
+<p align="center">
+  <!-- Package Info -->
+  <a href="https://www.npmjs.com/package/mcp-vibekanban"><img alt="npm" src="https://img.shields.io/npm/v/mcp-vibekanban.svg?style=flat-square&color=4D87E6"></a>
+  <a href="#"><img alt="node" src="https://img.shields.io/badge/node-18+-4D87E6.svg?style=flat-square"></a>
+  &nbsp;&nbsp;•&nbsp;&nbsp;
+  <!-- Features -->
+  <a href="https://opensource.org/licenses/MIT"><img alt="license" src="https://img.shields.io/badge/License-MIT-F9A825.svg?style=flat-square"></a>
+  <a href="#"><img alt="platform" src="https://img.shields.io/badge/platform-macOS_|_Linux_|_Windows-2ED573.svg?style=flat-square"></a>
+</p>
 
-```bash
-# Start Vibe Kanban (runs on port 9119 by default)
-npx vibe-kanban
+<p align="center">
+  <img alt="tools" src="https://img.shields.io/badge/12_tools-ready_to_use-2ED573.svg?style=for-the-badge">
+  <img alt="zero config" src="https://img.shields.io/badge/💪_env--locked-no_IDs_in_every_call-2ED573.svg?style=for-the-badge">
+</p>
 
-# Or on a custom port
-PORT=1990 npx vibe-kanban
-```
+<div align="center">
 
-This MCP server **connects directly** to your running Vibe Kanban instance - no custom setup required.
+### 🧭 Quick Navigation
 
-## What's New in v1.4.0
+[**⚡ Get Started**](#-get-started-in-60-seconds) •
+[**🎯 Why mcp-vibekanban**](#-why-mcp-vibekanban) •
+[**🎮 Tools**](#-tool-reference) •
+[**⚙️ Configuration**](#%EF%B8%8F-environment-variables) •
+[**📚 Workflows**](#-recommended-workflows)
 
-**Agent-Optimized Responses:** All tool responses now follow the MCP best practices 70/20/10 pattern:
-- **70% Summary** - Clear status indicators with emojis (✅ ⬜ 🔵 🟡)
-- **20% Data** - Structured markdown lists instead of raw JSON
-- **10% Next Steps** - Actionable follow-up commands with ready-to-use syntax
-
-**Improved Tool Descriptions:** Each tool now includes:
-- `<usecase>` - When to use this tool
-- `<when_not_to_use>` - Redirects to appropriate tools
-- `<example>` - Ready-to-copy usage examples
-
-**Before (v1.3.0):**
-```json
-{"count":4,"project_id":"7d2d...","tasks":[{"id":"5019...", ...}]}
-```
-
-**After (v1.4.0):**
-```
-📋 **4 Tasks**
-inreview: 3 • todo: 1
+</div>
 
 ---
-🟡 **Test task** (`5019ae11`)
-⬜ **Another task** (`3b3f5ff2`)
 
-**Next Steps:**
-→ Get task details: `get_task(task_id="TASK_ID")`
-→ Start working: `start_workspace_session(task_id="TASK_ID", executor="claude_code")`
-```
+## The Pitch
 
-## What's New in v1.3.0
+**`mcp-vibekanban`** is the project management backbone for your AI coding assistant. Instead of alt-tabbing to a Kanban board, your AI creates tasks, launches coding agent sessions, and sends follow-up messages — all through MCP. Project and repo IDs are locked via environment variables, so every tool call is clean and minimal.
 
-**Fixed:** Network connectivity issues on ARM64 macOS (Apple Silicon) when connecting to LAN IPs. The HTTP client now uses `curl` subprocess instead of Node.js native HTTP clients, which fixes `EHOSTUNREACH` errors when connecting to non-localhost addresses.
+<div align="center">
+<table>
+<tr>
+<td align="center">
+<h3>📋</h3>
+<b>Task Management</b><br/>
+<sub>Create, list, update, delete</sub>
+</td>
+<td align="center">
+<h3>🚀</h3>
+<b>Workspace Sessions</b><br/>
+<sub>Launch any coding agent</sub>
+</td>
+<td align="center">
+<h3>💬</h3>
+<b>Session Messaging</b><br/>
+<sub>Follow-up + auto-queue</sub>
+</td>
+<td align="center">
+<h3>🔒</h3>
+<b>Env-Locked IDs</b><br/>
+<sub>No ID juggling per call</sub>
+</td>
+</tr>
+</table>
+</div>
 
-## Why This Exists
+Here's how it works:
+- **You:** "Create a task for adding OAuth, then start a Claude Code session on it."
+- **AI + mcp-vibekanban:** Creates the task, launches a workspace session, and gives you the session ID.
+- **You:** "Send a follow-up: add Google as an OAuth provider."
+- **Result:** The message is delivered (or auto-queued if the agent is busy). Zero browser tabs opened.
 
-The official Vibe Kanban MCP server has 13 tools that require passing `project_id` and `repo_id` in every call. This package simplifies it to **12 focused tools** with IDs locked via environment variables, plus adds **session messaging** capabilities (not in official MCP).
+---
 
-| Official MCP (13 tools) | This MCP (12 tools) |
-|-------------------------|-------------------|
-| `list_projects` | ❌ Removed (locked via env) |
-| `list_repos` | ❌ Removed (locked via env) |
-| `get_repo` | ❌ Removed |
-| `update_setup_script` | ❌ Removed |
-| `update_cleanup_script` | ❌ Removed |
-| `update_dev_server_script` | ❌ Removed |
-| `create_task(project_id, ...)` | ✅ `create_task(title, description)` |
-| `list_tasks(project_id, ...)` | ✅ `list_tasks(status?, limit?)` |
-| `get_task`, `update_task`, `delete_task` | ✅ Same |
-| `start_workspace_session(repos[], ...)` | ✅ `start_workspace_session(task_id, executor)` |
-| `get_context` | ✅ Same |
-| - | ✅ **NEW:** `list_sessions` |
-| - | ✅ **NEW:** `get_session` |
-| - | ✅ **NEW:** `send_message` |
-| - | ✅ **NEW:** `get_queue_status` |
-| - | ✅ **NEW:** `cancel_queue` |
+## 🎯 Why mcp-vibekanban
 
-## Quick Install
+The official Vibe Kanban MCP requires passing `project_id` and `repo_id` in every call. `mcp-vibekanban` locks those via env vars and adds session messaging.
 
-### Option 1: Using install-mcp CLI (Recommended)
+<table align="center">
+<tr>
+<td align="center"><b>❌ Old Way (Official MCP)</b></td>
+<td align="center"><b>✅ New Way (mcp-vibekanban)</b></td>
+</tr>
+<tr>
+<td>
+<ol>
+  <li>Call <code>list_projects</code> to find your project ID.</li>
+  <li>Call <code>list_repos</code> to find your repo ID.</li>
+  <li>Pass both IDs in every single tool call.</li>
+  <li>No way to message active sessions.</li>
+  <li>13 tools with boilerplate in each call.</li>
+</ol>
+</td>
+<td>
+<ol>
+  <li>Set env vars once — IDs are locked.</li>
+  <li><code>create_task(title="Add auth")</code> — done.</li>
+  <li>Launch sessions, send messages, check queues.</li>
+  <li>Auto-queue when executor is busy.</li>
+  <li>12 focused tools, zero boilerplate. ☕</li>
+</ol>
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 Get Started in 60 Seconds
+
+### 1. Prerequisites
+
+You need **Vibe Kanban running** (the upstream project):
 
 ```bash
-# For Claude Desktop (single repo projects)
-npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
-  --env VIBE_PROJECT_ID=your-project-uuid
-
-# For projects with multiple repos (specify repo explicitly)
-npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
-  --env VIBE_PROJECT_ID=your-project-uuid \
-  --env VIBE_REPO_ID=your-repo-uuid
-
-# For Cursor
-npx install-mcp vibe-kanban-better-mcp --client cursor \
-  --env VIBE_PROJECT_ID=your-project-uuid
-
-# If Vibe Kanban runs on non-default port
-npx install-mcp vibe-kanban-better-mcp --client claude-desktop \
-  --env VIBE_PROJECT_ID=your-project-uuid \
-  --env VIBE_API_URL=http://localhost:1990
+npx vibe-kanban              # default port 9119
+# or: PORT=1990 npx vibe-kanban
 ```
 
-> **Note:** `VIBE_REPO_ID` is optional! If your project has only one repository, it will be auto-detected. Only specify it for multi-repo projects.
+### 2. Configure Your MCP Client
 
-### Option 2: Manual Configuration
+<div align="center">
 
-Add to your MCP client config:
+| Client | Config File | Docs |
+|:------:|:-----------:|:----:|
+| 🖥️ **Claude Desktop** | `claude_desktop_config.json` | [Setup](#claude-desktop) |
+| ⌨️ **Claude Code** | CLI or `~/.claude.json` | [Setup](#claude-code-cli) |
+| 🎯 **Cursor / 🏄 Windsurf** | `.cursor/mcp.json` | [Setup](#cursorwindsurf) |
 
-**Claude Desktop** (`~/.config/claude/claude_desktop_config.json` or `~/Library/Application Support/Claude/claude_desktop_config.json`):
+</div>
+
+#### Claude Desktop
+
+**Quick install:**
+
+```bash
+npx install-mcp mcp-vibekanban --client claude-desktop \
+  --env VKB_API_URL=https://your-vibekanban-instance.com \
+  --env VKB_PROJECT_SLUG=your-project \
+  --env VKB_REPOSITORY_SLUG=your-repo
+```
+
+**Manual config** — add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "vibe-kanban": {
+    "vibekanban": {
       "command": "npx",
-      "args": ["-y", "vibe-kanban-better-mcp"],
+      "args": ["-y", "mcp-vibekanban"],
       "env": {
-        "VIBE_PROJECT_ID": "your-project-uuid-here",
-        "VIBE_REPO_ID": "your-repo-uuid-here",
-        "VIBE_API_URL": "http://localhost:9119"
+        "VKB_API_URL": "https://your-vibekanban-instance.com",
+        "VKB_PROJECT_SLUG": "your-project",
+        "VKB_REPOSITORY_SLUG": "your-repo"
       }
     }
   }
 }
 ```
 
-**Cursor** (`~/.cursor/mcp.json`):
+#### Claude Code CLI
+
+```bash
+claude mcp add vibekanban npx \
+  --scope user \
+  --env VKB_API_URL=https://your-vibekanban-instance.com \
+  --env VKB_PROJECT_SLUG=your-project \
+  --env VKB_REPOSITORY_SLUG=your-repo \
+  -- -y mcp-vibekanban
+```
+
+Or manually add to `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
-    "vibe-kanban": {
+    "vibekanban": {
       "command": "npx",
-      "args": ["-y", "vibe-kanban-better-mcp"],
+      "args": ["-y", "mcp-vibekanban"],
       "env": {
-        "VIBE_PROJECT_ID": "your-project-uuid-here",
-        "VIBE_REPO_ID": "your-repo-uuid-here",
-        "VIBE_API_URL": "http://localhost:9119"
+        "VKB_API_URL": "https://your-vibekanban-instance.com",
+        "VKB_PROJECT_SLUG": "your-project",
+        "VKB_REPOSITORY_SLUG": "your-repo"
       }
     }
   }
 }
 ```
 
-### Option 3: Run Directly (for testing)
+#### Cursor/Windsurf
 
-```bash
-# Set environment variables
-export VIBE_PROJECT_ID=your-project-uuid
-export VIBE_REPO_ID=your-repo-uuid
-export VIBE_API_URL=http://localhost:9119  # or your custom port
+Add to `.cursor/mcp.json` (or equivalent):
 
-# Run the MCP server (STDIO mode)
-npx vibe-kanban-better-mcp
+```json
+{
+  "mcpServers": {
+    "vibekanban": {
+      "command": "npx",
+      "args": ["-y", "mcp-vibekanban"],
+      "env": {
+        "VKB_API_URL": "https://your-vibekanban-instance.com",
+        "VKB_PROJECT_SLUG": "your-project",
+        "VKB_REPOSITORY_SLUG": "your-repo"
+      }
+    }
+  }
+}
 ```
 
-## Finding Your UUIDs
+> **Backward Compatibility:** The old package name `vibe-kanban-better-mcp` still works as a binary alias. Existing configs don't need updating.
 
-**Option A: From Vibe Kanban UI**
-1. Open Vibe Kanban in browser (e.g., http://localhost:9119)
-2. Click on a project → URL shows project ID
-3. Click on a repo → URL shows repo ID
+---
 
-**Option B: From API**
-```bash
-# List projects (replace port if needed)
-curl -s http://localhost:9119/api/projects | jq '.data[] | {id, name}'
+## 🎮 Tool Reference
 
-# List repos in a project
-curl -s "http://localhost:9119/api/projects/YOUR_PROJECT_ID/repositories" | jq '.data[] | {id, name}'
-```
+`mcp-vibekanban` exposes **12 MCP tools** across three categories:
 
-**Your current setup:**
-```bash
-# Project ID: 2747a217-e96b-415a-90f0-40b5257779b2
-# Repo ID: 73fa23bc-a0e5-4ca7-a446-82d7cc5ef72c
-# Vibe Kanban URL: http://localhost:1990
-```
-
-## Available Tools
+<div align="center">
+<table>
+<tr>
+<td align="center">
+<h3>📋</h3>
+<b><code>get_context</code></b><br/>
+<sub>Workspace info</sub>
+</td>
+<td align="center">
+<h3>📝</h3>
+<b><code>list_tasks</code></b><br/>
+<sub>Filter & browse</sub>
+</td>
+<td align="center">
+<h3>➕</h3>
+<b><code>create_task</code></b><br/>
+<sub>New task</sub>
+</td>
+<td align="center">
+<h3>🔍</h3>
+<b><code>get_task</code></b><br/>
+<sub>Full details</sub>
+</td>
+<td align="center">
+<h3>✏️</h3>
+<b><code>update_task</code></b><br/>
+<sub>Edit & transition</sub>
+</td>
+<td align="center">
+<h3>🗑️</h3>
+<b><code>delete_task</code></b><br/>
+<sub>Remove task</sub>
+</td>
+</tr>
+<tr>
+<td align="center">
+<h3>🚀</h3>
+<b><code>start_workspace_session</code></b><br/>
+<sub>Launch agent</sub>
+</td>
+<td align="center">
+<h3>📂</h3>
+<b><code>list_sessions</code></b><br/>
+<sub>All sessions</sub>
+</td>
+<td align="center">
+<h3>📍</h3>
+<b><code>get_session</code></b><br/>
+<sub>Session info</sub>
+</td>
+<td align="center">
+<h3>💬</h3>
+<b><code>send_message</code></b><br/>
+<sub>Follow-up</sub>
+</td>
+<td align="center">
+<h3>📤</h3>
+<b><code>get_queue_status</code></b><br/>
+<sub>Pending check</sub>
+</td>
+<td align="center">
+<h3>🚫</h3>
+<b><code>cancel_queue</code></b><br/>
+<sub>Clear queue</sub>
+</td>
+</tr>
+</table>
+</div>
 
 ### Task Management
 
-| Tool | Description |
-|------|-------------|
-| `get_context` | Get current workspace context (project, task, workspace info) |
-| `list_tasks` | List tasks with optional status filter and limit |
-| `create_task` | Create a new task (supports @tag expansion) |
-| `get_task` | Get task details by ID |
-| `update_task` | Update task title/description/status |
-| `delete_task` | Delete a task |
+#### `get_context`
+
+Get current workspace context — project, active task, and workspace info.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| *(none)* | — | — | No parameters needed |
+
+```
+get_context()
+```
+
+---
+
+#### `list_tasks`
+
+List tasks in the project, optionally filtered by status.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `status` | string | No | all | `todo` · `inprogress` · `inreview` · `done` · `cancelled` |
+| `limit` | number | No | `50` | Max results (1–100) |
+
+```
+list_tasks(status="inprogress", limit=10)
+```
+
+---
+
+#### `create_task`
+
+Create a new task. Supports `@tag` expansion in descriptions.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | Yes | Task title (1–500 chars) |
+| `description` | string | No | Details, supports `@tag` expansion |
+
+```
+create_task(title="Add user auth", description="Implement OAuth with @google-auth")
+```
+
+---
+
+#### `get_task`
+
+Get full task details by ID.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes | Task UUID |
+
+```
+get_task(task_id="abc123...")
+```
+
+---
+
+#### `update_task`
+
+Update task title, description, or status. At least one field required.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes | Task UUID |
+| `title` | string | No | New title |
+| `description` | string | No | New description |
+| `status` | string | No | `todo` · `inprogress` · `inreview` · `done` · `cancelled` |
+
+```
+update_task(task_id="abc123...", status="done")
+```
+
+---
+
+#### `delete_task`
+
+Permanently delete a task. Cannot be undone.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes | Task UUID |
+
+```
+delete_task(task_id="abc123...")
+```
+
+---
 
 ### Session Management
 
-| Tool | Description |
-|------|-------------|
-| `start_workspace_session` | Start a coding agent session for a task |
-| `list_sessions` | List all sessions for a workspace |
-| `get_session` | Get session details (including assigned executor) |
+#### `start_workspace_session`
 
-### Messaging (NEW in v1.1.0)
+Launch a coding agent session for a task. Creates workspace + session.
 
-| Tool | Description |
-|------|-------------|
-| `send_message` | Send a follow-up message to an active coding agent session |
-| `get_queue_status` | Check if a message is queued (when executor is busy) |
-| `cancel_queue` | Cancel a queued message |
-
-## Session Messaging Workflow
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `task_id` | string (UUID) | Yes | Task UUID |
+| `executor` | string | Yes | `claude_code` · `amp` · `gemini` · `codex` · `opencode` · `cursor` · `qwen_code` · `copilot` · `droid` |
+| `variant` | string | No | e.g., `PLAN`, `IMPLEMENT` |
+| `base_branch` | string | No | Branch to work from (default: `main`) |
 
 ```
-1. Create task        → create_task(title: "Add auth")
-2. Start session      → start_workspace_session(task_id, executor: "claude_code")
-3. List sessions      → list_sessions(workspace_id) → get session_id
-4. Send message       → send_message(session_id, prompt: "Add OAuth support")
-5. If busy, auto-queues → get_queue_status(session_id)
-6. Cancel if needed   → cancel_queue(session_id)
+start_workspace_session(task_id="abc123...", executor="claude_code")
 ```
 
-## Environment Variables
+---
+
+#### `list_sessions`
+
+List all sessions for a workspace.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspace_id` | string (UUID) | Yes | Workspace UUID |
+
+```
+list_sessions(workspace_id="xyz789...")
+```
+
+---
+
+#### `get_session`
+
+Get session details including assigned executor.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string (UUID) | Yes | Session UUID |
+
+```
+get_session(session_id="sess123...")
+```
+
+---
+
+### Messaging
+
+#### `send_message`
+
+Send a follow-up message to an active coding agent session. Auto-queues if the executor is busy.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `session_id` | string (UUID) | Yes | — | Session UUID |
+| `prompt` | string | Yes | — | Message to send |
+| `executor` | string | No | auto | Auto-detected from session |
+| `variant` | string | No | — | e.g., `PLAN` |
+| `auto_queue` | boolean | No | `true` | Queue message if executor is busy |
+
+```
+send_message(session_id="sess123...", prompt="Add error handling for edge cases")
+```
+
+---
+
+#### `get_queue_status`
+
+Check if a message is queued for a session.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string (UUID) | Yes | Session UUID |
+
+```
+get_queue_status(session_id="sess123...")
+```
+
+---
+
+#### `cancel_queue`
+
+Cancel a pending queued message.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string (UUID) | Yes | Session UUID |
+
+```
+cancel_queue(session_id="sess123...")
+```
+
+---
+
+## ⚙️ Environment Variables
+
+<div align="center">
 
 | Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `VIBE_PROJECT_ID` | ✅ Yes | - | UUID of your Vibe Kanban project |
-| `VIBE_REPO_ID` | ⚠️ Optional | Auto-detected | UUID of the repository. Auto-detected if project has only one repo. |
-| `VIBE_API_URL` | No | `http://localhost:9119` | Vibe Kanban API URL |
-| `VIBE_WORKSPACE_ID` | No | - | For `get_context` in active sessions |
+|:--------:|:--------:|:-------:|:------------|
+| `VKB_API_URL` | ✅ Yes | — | Vibe Kanban instance URL (e.g., `https://your-instance.com`) |
+| `VKB_PROJECT_SLUG` | ✅ Yes | — | Project slug or UUID — locked for all tool calls |
+| `VKB_REPOSITORY_SLUG` | ✅ Yes | — | Repository slug or UUID — locked for all tool calls |
 
-## Remote Access
+</div>
 
-Use an MCP proxy for remote access:
+All three variables are **required** and lock the project/repository context so you never need to pass IDs in individual tool calls.
+
+---
+
+## 📚 Recommended Workflows
+
+### Create → Launch → Message
+
+The most common pattern: create a task, start a session, and iterate with follow-ups.
+
+```
+1. create_task(title="Add OAuth login")
+   → Returns task_id
+
+2. start_workspace_session(task_id="...", executor="claude_code")
+   → Returns workspace_id
+
+3. list_sessions(workspace_id="...")
+   → Returns session_id
+
+4. send_message(session_id="...", prompt="Add Google as a provider")
+   → Sent (or auto-queued if busy)
+
+5. get_queue_status(session_id="...")
+   → Check pending messages
+```
+
+### Triage & Prioritize
+
+Review existing tasks and move them through your pipeline.
+
+```
+1. list_tasks(status="todo")
+   → See all pending work
+
+2. get_task(task_id="...")
+   → Read full details
+
+3. update_task(task_id="...", status="inprogress")
+   → Move to active
+
+4. start_workspace_session(task_id="...", executor="amp")
+   → Hand off to a coding agent
+```
+
+### Multi-Agent Orchestration
+
+Run different agents on different tasks simultaneously.
+
+```
+1. create_task(title="Refactor auth module")
+2. create_task(title="Write API tests")
+3. create_task(title="Update migration guide")
+
+4. start_workspace_session(task_id="task1", executor="claude_code")
+5. start_workspace_session(task_id="task2", executor="gemini")
+6. start_workspace_session(task_id="task3", executor="copilot")
+```
+
+---
+
+## 🛠️ Development
 
 ```bash
-# Install proxy
-npm install -g @anthropic-ai/mcp-proxy
-
-# Run with HTTP endpoint
-VIBE_PROJECT_ID=xxx VIBE_REPO_ID=yyy \
-  mcp-proxy --stdio "npx vibe-kanban-better-mcp" --port 8080
-
-# Now accessible at http://localhost:8080/mcp
+git clone https://github.com/yigitkonur/mcp-vibekanban.git
+cd mcp-vibekanban
+npm install
+npm run dev        # Run with tsx (hot reload)
+npm run build      # Compile TypeScript
+npm start          # Run compiled output
 ```
 
-## Works With Original Vibe Kanban
-
-This is a **drop-in replacement** for the MCP server only. You still get:
-- ✅ All Vibe Kanban UI features
-- ✅ All coding agents (Claude Code, Amp, Gemini, etc.)
-- ✅ Workspace management
-- ✅ Git operations
-- ✅ PR creation
-
-The only difference is how the MCP tools work - simpler and cleaner.
-
-## Example Workflows
-
-### Create and Start Task
+### Project Structure
 
 ```
-AI: "Create a task to add user authentication"
-→ create_task(title: "Add user authentication")
-→ Returns: { task_id: "abc123" }
-
-AI: "Start working on it with Claude Code"
-→ start_workspace_session(task_id: "abc123", executor: "claude_code")
-→ Returns: { workspace_id: "xyz789" }
+src/
+├── index.ts          # Server entry point
+├── config.ts         # Env var loader & validation
+├── tools/
+│   └── index.ts      # All 12 tool definitions
+├── api/              # Vibe Kanban HTTP client
+├── resources.ts      # MCP resource handlers
+├── tasks.ts          # Task primitive integration
+└── utils/            # Formatter & progress helpers
 ```
 
-### List and Update Tasks
+---
 
-```
-AI: "Show me all in-progress tasks"
-→ list_tasks(status: "inprogress")
-→ Returns: [{ id, title, status }...]
+## 🔧 Troubleshooting
 
-AI: "Mark task abc123 as done"
-→ update_task(task_id: "abc123", status: "done")
-```
+<details>
+<summary><b>Expand for troubleshooting tips</b></summary>
 
-### Send Message to Active Session (NEW)
+| Problem | Solution |
+| :--- | :--- |
+| **Server exits with "VKB_PROJECT_SLUG is required"** | Set all three required env vars: `VKB_API_URL`, `VKB_PROJECT_SLUG`, `VKB_REPOSITORY_SLUG`. |
+| **Connection refused / ECONNREFUSED** | Make sure your Vibe Kanban instance is running and `VKB_API_URL` is correct. |
+| **EHOSTUNREACH on Apple Silicon** | The HTTP client uses `curl` subprocess to work around ARM64 macOS network issues with Node.js native clients. Ensure `curl` is available. |
+| **"Unknown tool" error** | Verify you're on the latest version: `npx mcp-vibekanban@latest`. |
+| **Send message returns "executor busy"** | This is normal. With `auto_queue: true` (default), the message is automatically queued and will execute when the current process completes. |
+| **Task ID format error** | All IDs must be valid UUIDs (e.g., `123e4567-e89b-12d3-a456-426614174000`). |
+| **Old binary name still works?** | Yes — `vibe-kanban-better-mcp` and `vkb-mcp` are kept as binary aliases for backward compatibility. |
 
-```
-AI: "Send a message to the coding agent"
-→ list_sessions(workspace_id: "xyz789")
-→ Returns: [{ id: "session123", executor: "CLAUDE_CODE" }]
+</details>
 
-→ send_message(session_id: "session123", prompt: "Add OAuth support")
-→ Returns: { action: "sent", execution_process: { id, status: "running" } }
-```
+---
 
-## Supported Executors
+<div align="center">
 
-- `claude_code` - Claude Code (Anthropic)
-- `amp` - Amp
-- `gemini` - Gemini CLI
-- `codex` - OpenAI Codex
-- `opencode` - OpenCode
-- `cursor` - Cursor Agent
-- `qwen_code` - Qwen Code
-- `copilot` - GitHub Copilot
-- `droid` - Droid
+MIT © [Yiğit Konur](https://github.com/yigitkonur)
 
-## License
+**[Vibe Kanban](https://github.com/BloopAI/vibe-kanban)** · **[MCP Protocol](https://modelcontextprotocol.io)** · **[install-mcp](https://github.com/anthropics/install-mcp)**
 
-MIT
-
-## Links
-
-- [Vibe Kanban](https://github.com/BloopAI/vibe-kanban) - The main project
-- [MCP Protocol](https://modelcontextprotocol.io) - Model Context Protocol docs
-- [install-mcp](https://github.com/anthropics/install-mcp) - Easy MCP installation
+</div>
