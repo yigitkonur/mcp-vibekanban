@@ -1,0 +1,12 @@
+{
+  "name": "mcp-vibekanban",
+  "description": "MCP server for Vibe Kanban project management (STDIO + HTTP transports)",
+  "basePort": 2400,
+  "setup": [
+    "cp \"$JEAN_ROOT_PATH/.env\" .env 2>/dev/null || echo 'No .env to copy, skipping'",
+    "mkdir -p .claude && cp \"$JEAN_ROOT_PATH/.claude/settings.local.json\" .claude/settings.local.json 2>/dev/null || echo 'No settings.local.json to copy, skipping'",
+    "npm install",
+    "npm run build"
+  ],
+  "run": "MCP_TRANSPORT=http MCP_PORT=$(p=2400; while lsof -i :$p >/dev/null 2>&1; do p=$((p+1)); done; echo $p) npm run dev"
+}
