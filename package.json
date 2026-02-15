@@ -1,7 +1,7 @@
 {
   "name": "mcp-vibekanban",
-  "version": "3.1.5",
-  "description": "Enhanced MCP server for Vibe Kanban — simplified tools with env-based project/repo locking, real-time WebSocket streaming & session messaging",
+  "version": "3.1.6",
+  "description": "Enhanced MCP server for Vibe Kanban \u2014 simplified tools with env-based project/repo locking, real-time WebSocket streaming & session messaging",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
