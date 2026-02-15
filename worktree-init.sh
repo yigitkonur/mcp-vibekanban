@@ -46,23 +46,23 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
-# 3. Install dependencies with npm
+# 3. Install dependencies with pnpm
 # --------------------------------------------------------------------------- #
 echo ""
-echo "==> Installing dependencies (npm install) ..."
-# Using 'npm install' rather than 'npm ci' because esbuild's platform-specific
-# binary postinstall fails under 'npm ci' on macOS when the worktree lives on a
-# symlinked path (e.g. /tmp -> /private/tmp). 'npm install' still honours the
+echo "==> Installing dependencies (pnpm install) ..."
+# Using 'pnpm install' because esbuild's platform-specific
+# binary postinstall may fail on macOS when the worktree lives on a
+# symlinked path (e.g. /tmp -> /private/tmp). 'pnpm install' honours the
 # lockfile when present and is safe to re-run (idempotent).
-npm install
+pnpm install
 echo "    Dependencies installed."
 
 # --------------------------------------------------------------------------- #
 # 4. Build the project
 # --------------------------------------------------------------------------- #
 echo ""
-echo "==> Building project (npm run build) ..."
-npm run build
+echo "==> Building project (pnpm build) ..."
+pnpm build
 echo "    Build complete."
 
 echo ""
