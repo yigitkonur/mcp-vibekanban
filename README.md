@@ -605,10 +605,10 @@ Run different agents on different tasks simultaneously.
 ```bash
 git clone https://github.com/yigitkonur/mcp-vibekanban.git
 cd mcp-vibekanban
-npm install
-npm run dev        # Run with tsx (hot reload)
-npm run build      # Compile TypeScript
-npm start          # Run compiled output
+pnpm install
+pnpm dev        # Run with tsx (hot reload)
+pnpm build      # Compile TypeScript
+pnpm start          # Run compiled output
 ```
 
 ### Project Structure

@@ -9,10 +9,10 @@ MCP server bridging AI coding assistants with Vibe Kanban project management. Lo
 ## Build & Run
 
 ```bash
-npm run build       # Compile TypeScript → dist/
-npm start           # Run compiled dist/index.js
-npm run dev         # Run with tsx hot reload
-npm run clean       # Remove dist/
+pnpm build       # Compile TypeScript → dist/
+pnpm start           # Run compiled dist/index.js
+pnpm dev         # Run with tsx hot reload
+pnpm clean       # Remove dist/
 ```
 
 Running requires Vibe Kanban to be up first (`npx vibe-kanban`), then:
