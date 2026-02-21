@@ -63,7 +63,7 @@ resources support subscriptions — polls on a configurable interval, emits upda
 # run directly
 VIBE_PROJECT_ID=<uuid> npx mcp-better-vibe-kanban
 
-# alternate package names work too
+# legacy aliases still work
 npx vibe-kanban-better-mcp
 npx vkb-mcp
 ```
@@ -97,9 +97,9 @@ requires Node.js 18+ and a running Vibe Kanban instance (default: `npx vibe-kanb
 ```json
 {
   "mcpServers": {
-    "vibe-kanban": {
+    "mcp-better-vibe-kanban": {
       "command": "npx",
-      "args": ["-y", "vibe-kanban-better-mcp"],
+      "args": ["-y", "mcp-better-vibe-kanban"],
       "env": {
         "VIBE_PROJECT_ID": "your-project-uuid",
         "VIBE_REPO_ID": "your-repo-uuid",

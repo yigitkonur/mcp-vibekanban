@@ -1,11 +1,11 @@
 {
-  "name": "mcp-vibekanban",
+  "name": "mcp-better-vibe-kanban",
   "version": "3.1.7",
   "description": "Enhanced MCP server for Vibe Kanban — simplified tools with env-based project/repo locking, real-time WebSocket streaming & session messaging",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mcp-vibekanban": "bin/cli.js",
+    "mcp-better-vibe-kanban": "bin/cli.js",
     "vibe-kanban-better-mcp": "bin/cli.js",
     "vkb-mcp": "bin/cli.js"
   },
@@ -28,12 +28,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yigitkonur/mcp-vibekanban.git"
+    "url": "git+https://github.com/yigitkonur/mcp-better-vibe-kanban.git"
   },
   "bugs": {
-    "url": "https://github.com/yigitkonur/mcp-vibekanban/issues"
+    "url": "https://github.com/yigitkonur/mcp-better-vibe-kanban/issues"
   },
-  "homepage": "https://github.com/yigitkonur/mcp-vibekanban#readme",
+  "homepage": "https://github.com/yigitkonur/mcp-better-vibe-kanban#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "agents": "^0.3.10",

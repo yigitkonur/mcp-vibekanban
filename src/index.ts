@@ -22,7 +22,7 @@ import { loadConfig } from './config.js';
 import { allTools } from './tools/index.js';
 import { registerResourceHandlers, createSubscriptionManager } from './resources.js';
 
-const SERVER_NAME = 'mcp-vibekanban';
+const SERVER_NAME = 'mcp-better-vibe-kanban';
 const SERVER_VERSION = '3.1.1';
 
 const toolMap = new Map(allTools.map(t => [t.name, t]));

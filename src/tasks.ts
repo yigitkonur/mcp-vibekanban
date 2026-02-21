@@ -56,7 +56,7 @@ export async function taskAwareSendMessage(
   // Start background polling (non-blocking).
   // Only pass taskStore — extra is request-scoped and becomes stale after this handler returns.
   pollExecutionProcess(process.id, sessionId, task.taskId, taskStore).catch(err => {
-    console.error('[vibe-kanban-mcp] Task poll error:', err);
+    console.error('[mcp-better-vibe-kanban] Task poll error:', err);
   });
 
   return {
@@ -158,7 +158,7 @@ async function pollExecutionProcess(
       }
     } catch (err) {
       // Log but continue polling on transient errors
-      console.error('[vibe-kanban-mcp] Poll iteration error:', err);
+      console.error('[mcp-better-vibe-kanban] Poll iteration error:', err);
     }
   }
 

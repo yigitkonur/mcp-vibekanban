@@ -9,9 +9,9 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { allTools } from './tools/index.js';
 
-export class VibeKanbanMCP extends McpAgent {
+export class BetterVibeKanbanMCP extends McpAgent {
   server = new McpServer({
-    name: 'mcp-vibekanban',
+    name: 'mcp-better-vibe-kanban',
     version: '3.1.1',
   });
 
@@ -50,13 +50,13 @@ export default {
 
     if (url.pathname === '/health') {
       return new Response(
-        JSON.stringify({ status: 'ok', name: 'mcp-vibekanban', version: '3.1.1' }),
+        JSON.stringify({ status: 'ok', name: 'mcp-better-vibe-kanban', version: '3.1.1' }),
         { headers: { 'Content-Type': 'application/json' } },
       );
     }
 
     if (url.pathname === '/mcp' || url.pathname === '/sse' || url.pathname === '/message') {
-      return VibeKanbanMCP.serve('/mcp').fetch(request, env, ctx);
+      return BetterVibeKanbanMCP.serve('/mcp').fetch(request, env, ctx);
     }
 
     return new Response('Not found', { status: 404 });

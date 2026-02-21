@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###############################################################################
-# worktree-init.sh -- Bootstrap a git worktree for mcp-vibekanban
+# worktree-init.sh -- Bootstrap a git worktree for mcp-better-vibe-kanban
 #
 # Run this script from the root of a freshly-created git worktree.
 # It copies untracked config files from the main repo and installs deps.
@@ -15,7 +15,7 @@ set -euo pipefail
 # Idempotent: safe to re-run at any time.
 ###############################################################################
 
-MAIN_REPO="/Users/yigitkonur/dev/projects/mcp-vibekanban"
+MAIN_REPO="/Users/yigitkonur/dev/projects/mcp-better-vibe-kanban"
 WORKTREE_DIR="$(pwd)"
 
 echo "==> worktree-init.sh"

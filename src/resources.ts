@@ -118,7 +118,7 @@ export class SubscriptionManager {
   private startPolling(): void {
     this.pollTimer = setInterval(() => {
       this.checkForChanges().catch(err => {
-        console.error('[vibe-kanban-mcp] Subscription poll error:', err);
+        console.error('[mcp-better-vibe-kanban] Subscription poll error:', err);
       });
     }, this.pollIntervalMs);
   }

@@ -17,9 +17,9 @@ pnpm clean       # Remove dist/
 
 Running requires Vibe Kanban to be up first (`npx vibe-kanban`), then:
 ```bash
-VIBE_PROJECT_ID=<uuid> npx mcp-vibekanban
+VIBE_PROJECT_ID=<uuid> npx mcp-better-vibe-kanban
 # HTTP transport (default port 3000):
-MCP_TRANSPORT=http npx mcp-vibekanban
+MCP_TRANSPORT=http npx mcp-better-vibe-kanban
 ```
 
 No test or lint frameworks are configured.
@@ -94,4 +94,4 @@ Monitoring: `get_queue_status`, `cancel_queue`
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/npmrelease.yml`): pushes to main auto-publish to npm with OIDC provenance. Auto-bumps version if current version already exists on npm. Binary names: `mcp-vibekanban`, `vibe-kanban-better-mcp`, `vkb-mcp`. Ignores pushes that only change `*.md`, `docs/**`, `LICENSE`, or `.gitignore`. Commits containing `[skip ci]` skip the build.
+GitHub Actions (`.github/workflows/npm-publish.yml`): pushes to main auto-publish to npm with OIDC provenance. Auto-bumps version if current version already exists on npm. Binary names: `mcp-better-vibe-kanban`, `vibe-kanban-better-mcp`, `vkb-mcp`. Ignores pushes that only change `*.md`, `docs/**`, `LICENSE`, or `.gitignore`. Commits containing `[skip ci]` skip the build.

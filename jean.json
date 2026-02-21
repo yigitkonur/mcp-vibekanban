@@ -1,5 +1,5 @@
 {
-  "name": "mcp-vibekanban",
+  "name": "mcp-better-vibe-kanban",
   "description": "MCP server for Vibe Kanban project management (STDIO + HTTP transports)",
   "basePort": 2400,
   "setup": [

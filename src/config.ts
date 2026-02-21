@@ -21,18 +21,18 @@ export function loadConfig(): Config {
   const resourcePollIntervalMs = parseInt(process.env.VIBE_RESOURCE_POLL_INTERVAL || '10000', 10);
 
   if (!projectId) {
-    console.error('[vibe-kanban-mcp] Error: VIBE_PROJECT_ID is required');
-    console.error('[vibe-kanban-mcp] Example: VIBE_PROJECT_ID=123e4567-e89b-12d3-a456-426614174000');
+    console.error('[mcp-better-vibe-kanban] Error: VIBE_PROJECT_ID is required');
+    console.error('[mcp-better-vibe-kanban] Example: VIBE_PROJECT_ID=123e4567-e89b-12d3-a456-426614174000');
     process.exit(1);
   }
 
   if (!UUID_REGEX.test(projectId)) {
-    console.error(`[vibe-kanban-mcp] Error: VIBE_PROJECT_ID must be a valid UUID. Got: ${projectId}`);
+    console.error(`[mcp-better-vibe-kanban] Error: VIBE_PROJECT_ID must be a valid UUID. Got: ${projectId}`);
     process.exit(1);
   }
   
   if (repoId && !UUID_REGEX.test(repoId)) {
-    console.error(`[vibe-kanban-mcp] Error: VIBE_REPO_ID must be a valid UUID. Got: ${repoId}`);
+    console.error(`[mcp-better-vibe-kanban] Error: VIBE_REPO_ID must be a valid UUID. Got: ${repoId}`);
     process.exit(1);
   }
 
