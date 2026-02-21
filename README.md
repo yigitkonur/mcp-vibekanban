@@ -1,7 +1,7 @@
 MCP server that bridges your AI coding assistant to [Vibe Kanban](https://github.com/vibe-kanban). manage tasks, start sessions, send follow-ups, monitor execution — all without leaving Claude Code, Cursor, Amp, or whatever you're using.
 
 ```bash
-VIBE_PROJECT_ID=<uuid> npx mcp-vibekanban
+VIBE_PROJECT_ID=<uuid> npx mcp-better-vibe-kanban
 ```
 
 locks to a single project at startup so every tool call is zero-boilerplate. no project IDs in every request.
@@ -61,7 +61,7 @@ resources support subscriptions — polls on a configurable interval, emits upda
 
 ```bash
 # run directly
-VIBE_PROJECT_ID=<uuid> npx mcp-vibekanban
+VIBE_PROJECT_ID=<uuid> npx mcp-better-vibe-kanban
 
 # alternate package names work too
 npx vibe-kanban-better-mcp
@@ -71,8 +71,8 @@ npx vkb-mcp
 or build from source:
 
 ```bash
-git clone https://github.com/yigitkonur/mcp-vibekanban.git
-cd mcp-vibekanban
+git clone https://github.com/yigitkonur/mcp-better-vibe-kanban.git
+cd mcp-better-vibe-kanban
 pnpm install && pnpm build
 ```
 
@@ -117,7 +117,7 @@ same structure, drop it in your Cursor MCP config.
 ### HTTP transport
 
 ```bash
-MCP_TRANSPORT=http MCP_PORT=3000 VIBE_PROJECT_ID=<uuid> npx mcp-vibekanban
+MCP_TRANSPORT=http MCP_PORT=3000 VIBE_PROJECT_ID=<uuid> npx mcp-better-vibe-kanban
 ```
 
 health check at `GET /health`, MCP endpoint at `POST /mcp`. each HTTP session gets its own isolated server instance.
@@ -134,7 +134,7 @@ uses Durable Objects with SQLite migrations. progress notifications and task pri
 
 | transport | use case | command |
 |:---|:---|:---|
-| STDIO (default) | Claude Desktop, Cursor, local clients | `VIBE_PROJECT_ID=<uuid> npx mcp-vibekanban` |
+| STDIO (default) | Claude Desktop, Cursor, local clients | `VIBE_PROJECT_ID=<uuid> npx mcp-better-vibe-kanban` |
 | HTTP | remote/multi-session | `MCP_TRANSPORT=http MCP_PORT=3000 ...` |
 | Cloudflare Workers | edge deployment | `wrangler deploy` |
 
